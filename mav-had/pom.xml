@@ -111,7 +111,7 @@
                     <archive>
                         <manifest>
                             <addClasspath>true</addClasspath>
-                            <mainClass>run.AcmMJSort</mainClass>
+                            <!-- <mainClass>test.testDB2</mainClass> -->  
                         </manifest>
                     </archive>
                     <descriptorRefs>
