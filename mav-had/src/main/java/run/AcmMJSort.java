@@ -257,44 +257,59 @@ public class AcmMJSort extends Configured implements Tool{
 				  String zTable = "z_persons_" + groupKey;
 				  String x_yRes = "x_yRes" + groupKey;
 		          String final_res = "final_res_" + groupKey;
-				  statement.executeUpdate("drop table if exists "+ xTable + "," + yTable + "," + zTable + "," + x_yRes + "," + final_res );//clear old tables
-				  statement.executeUpdate("CREATE TABLE "+ xTable + " (article_id CHAR(20), publication_id CHAR(20)) ");
-			      statement.executeUpdate("CREATE TABLE "+ yTable + " (article_id CHAR(20), person_id CHAR(20)) ");
-		          statement.executeUpdate("CREATE TABLE "+ zTable + " (person_id CHAR(20), first_name CHAR(250), last_name CHAR(250)) ");
-		          for (Text val :values ) //insert values to tables 
+				 // statement.executeUpdate("drop table if exists "+ xTable + "," + yTable + "," + zTable + "," + x_yRes + "," + final_res );//clear old tables
+				  statement.executeUpdate("CREATE temporary TABLE "+ xTable + " (article_id CHAR(20), publication_id CHAR(20)) ");
+			      statement.executeUpdate("CREATE temporary TABLE "+ yTable + " (article_id CHAR(20), person_id CHAR(20)) ");
+		          statement.executeUpdate("CREATE temporary TABLE "+ zTable + " (person_id CHAR(20), first_name CHAR(250), last_name CHAR(250)) ");
+		          String xres = "insert into "+ xTable +" values ";
+		          String yres = "insert into "+ yTable +" values ";
+		          String zres = "insert into "+ zTable +" values ";
+		          
+		          for (Text val :values ) //load values to strings 
 		        	  {
 		        	  String relationValue = key.getSecond().toString();
 		        	  String keyjoin = relationValue.substring(1, relationValue.length());
 		        	  if (relationValue.indexOf('X') == 0) 
-		        		  statement.executeUpdate("insert into "+ xTable +" values ('" + keyjoin + "','" + val.toString() + "')");//article
+		        	//	  statement.executeUpdate("insert into "+ xTable +" values ('" + keyjoin + "','" + val.toString() + "')");//article
+		        		  xres += "('" + keyjoin + "','" + val.toString() + "'),";//article
 		        	  else if (relationValue.indexOf('Y') == 0) 
-		        		  statement.executeUpdate("insert into "+ yTable +" values ('" + keyjoin + "','" + val.toString() + "')");//article-author
+		        		  //statement.executeUpdate("insert into "+ yTable +" values ('" + keyjoin + "','" + val.toString() + "')");//article-author
+		        		  yres += "('" + keyjoin + "','" + val.toString() + "'),";
 		        	  else 
 		        	     {
 		        		     String [] Val = val.toString().split("\\s+");
-		        		     statement.executeUpdate("insert into "+ zTable +" values ('" + keyjoin + "','" + Val[0] + "','" + Val[1] + "')");//persons
+		        		     //statement.executeUpdate("insert into "+ zTable +" values ('" + keyjoin + "','" + Val[0] + "','" + Val[1] + "')");//persons
+		        		     zres += "('" + keyjoin + "','" + Val[0] + "','" + Val[1] + "'),";
 		        	     }//else
 		        	  }// FOR
+		          //insert data to tables
+		          xres = xres.substring(0, xres.length() -1);
+		          yres = yres.substring(0, yres.length() -1);
+		          zres = zres.substring(0, zres.length() -1);
+		          statement.executeUpdate(xres);//article
+		          statement.executeUpdate(yres);//article-author
+		          statement.executeUpdate(zres);//persons
 		          
-		          LOG.info("Reducer with key -"+ key.getFirst() + ", start join");
-				  int res1 =  statement.executeUpdate("CREATE TABLE " + x_yRes + " (select person_id, "+ xTable + ".article_id, publication_id "
+		          //LOG.info("Reducer with key -"+ key.getFirst() + ", start join");
+				  int res1 =  statement.executeUpdate("CREATE temporary TABLE " + x_yRes + " (select person_id, "+ xTable + ".article_id, publication_id "
 				      + "from "+ xTable + " inner join "+ yTable + " on " + xTable + ".article_id = " + yTable + ".article_id)");
-				  LOG.info("Reducer with key -"+ key.getFirst() + ", " + res1 + " firstJoinRows");
+				  //LOG.info("Reducer with key -"+ key.getFirst() + ", " + res1 + " firstJoinRows");
 				  if (res1 > 0)
 				  {
-					  int res2 = statement.executeUpdate("CREATE TABLE " + final_res + " (select "+ zTable + ".person_id, first_name, last_name, article_id, publication_id "
+					  int res2 = statement.executeUpdate("CREATE temporary TABLE " + final_res + " (select "+ zTable + ".person_id, first_name, last_name, article_id, publication_id "
 					  + "from "+ zTable + " inner join " + x_yRes + " on " + zTable + ".person_id = " + x_yRes + ".person_id)");
-				      LOG.info("Reducer with key -"+ key.getFirst() + ", finish join and start to write, " + res2 + " secondJoinRows");
+				   //   LOG.info("Reducer with key -"+ key.getFirst() + ", finish join and start to write, " + res2 + " secondJoinRows");
 				      if (res2 > 0)
 				      {
  				    	  ResultSet rs = statement.executeQuery("SELECT * FROM " + final_res);
-				    	  LOG.info("Reducer with key -"+ key.getFirst() + ", write ");
+				    	//  LOG.info("Reducer with key -"+ key.getFirst() + ", write ");
 				    	  while (rs.next())
 				    		  context.write(key.getFirst(), new Text(rs.getString("person_id")+ "\t" + rs.getString("first_name") +
 				    				  "\t" + rs.getString("last_name") + "\t" + rs.getString("article_id") + "\t" + rs.getString("publication_id") ));
 				      }//if-res2
 				 }//if-res1
-				  statement.executeUpdate("drop table if exists "+ xTable + "," + yTable + "," + zTable + "," + x_yRes + "," + final_res );//clear old tables
+				//  statement.executeUpdate("drop table if exists "+ xTable + "," + yTable + "," + zTable + "," + x_yRes + "," + final_res );//clear old tables
+				  LOG.info("Reducer with key -"+ key.getFirst());
 			}//try
 			catch (SQLException  e) { e.printStackTrace(); }
 		}//reduce

@@ -2,6 +2,11 @@ package run;
 
 import java.io.IOException;
 import java.net.URI;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -17,6 +22,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Reducer.Context;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
@@ -27,6 +33,10 @@ import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
+
+import run.AcmMJSort.SQLReduce;
+import run.AcmMJSort.newPartitionerClass;
+import examples.TextPair;
 
 public class AcmMJ extends Configured implements Tool{
 	public static class XMapper extends Mapper<LongWritable, Text, Text, Text> 
@@ -52,7 +62,7 @@ public class AcmMJ extends Configured implements Tool{
 				Text article_id = new Text(splitInput[0]);
 				Text publication_id = new Text(splitInput[1]);
 				Text opString = new Text("X" + article_id + "," + publication_id);
-				String a1 = String.valueOf(1 + (splitInput[0].hashCode() & Integer.MAX_VALUE % ANum));
+				String a1 = String.valueOf (splitInput[0].hashCode() & Integer.MAX_VALUE % ANum);
 				
 				for (int i = 1; i <= BNum; i++) 
 				{
@@ -63,11 +73,9 @@ public class AcmMJ extends Configured implements Tool{
 				}
 		//		LOG.info("Logging Z-article value! : " +opString);
 				}//if
-		//		else
-		//			LOG.info("Logging Z-article problem! missing attribute");
 			}//map
 
-			}// XMapper Class
+		}// XMapper Class
 
 	public static class YMapper extends Mapper<LongWritable, Text, Text, Text> 
 	{//article_author
@@ -91,13 +99,11 @@ public class AcmMJ extends Configured implements Tool{
 			Text a = new Text(splitInput[0]);
 			Text b = new Text(splitInput[1]);
 			Text opString = new Text("Y" + a + "," + b);
-			String a1 = String.valueOf(1 + (splitInput[0].hashCode() & Integer.MAX_VALUE % ANum));
-			String b1 = String.valueOf(1 + (splitInput[1].hashCode() & Integer.MAX_VALUE % BNum));
+			String a1 = String.valueOf(splitInput[0].hashCode() & Integer.MAX_VALUE % ANum);
+			String b1 = String.valueOf(splitInput[1].hashCode() & Integer.MAX_VALUE % BNum);
 			context.write(new Text( a1 + b1), opString);
 	//		LOG.info("Logging Y-article_author value! : " +opString);
 			}//if
-	//		else
-	//			LOG.info("Logging Y-article_author problem! missing attribute");
 		}// map
 
 	}// YMapper Class
@@ -128,7 +134,7 @@ public class AcmMJ extends Configured implements Tool{
 			Text Lname = new Text(splitInput[2]);
 
 			Text opString = new Text("Z" + person + "," + Fname +"," + Lname );
-			String b1 = String.valueOf(1 + (splitInput[0].hashCode() & Integer.MAX_VALUE % BNum));
+			String b1 = String.valueOf(splitInput[0].hashCode() & Integer.MAX_VALUE % BNum);
 			for (int i = 1; i <= ANum; i++) 
 			{
 				String a1 = String.valueOf(i);
@@ -138,8 +144,6 @@ public class AcmMJ extends Configured implements Tool{
 			}
 		//	LOG.info("Logging X-persons value! : " +opString);
 			}//if length
-		//	else
-		//	LOG.info("Logging X-persons problem! missing attribute");
 		}// map
 	}// ZMapper Class
 
@@ -275,15 +279,111 @@ public class AcmMJ extends Configured implements Tool{
 	}// ReduceIndex Class
 
 
-	public static class newPartitionerClass extends Partitioner<Text, Text> implements  org.apache.hadoop.conf.Configurable
-	  {		
+	public static class SQLReduce extends 	Reducer<Text, Text, Text, Text> 
+	{
+		private static final Log LOG = LogFactory.getLog(SQLReduce.class);
+		public static Connection	connection = null;
+		public static Statement statement = null;
+		@Override
+		protected void setup(Context context) throws IOException, InterruptedException 
+		{
+			 try 
+			  {	
+				  Class.forName("com.mysql.jdbc.Driver").newInstance();
+				  connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/acm_ex", "root", "root");
+				  statement = connection.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE,ResultSet.CONCUR_UPDATABLE);
+				 // LOG.info("SQL-  connection: " + connection + " statement: " + statement);
+			  }
+			 catch (SQLException | InstantiationException | IllegalAccessException | ClassNotFoundException e) 
+			  { e.printStackTrace(); }
+		}
+		
+		@Override
+		public void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException 
+		{	
+			  try 
+			  {	
+				  //create 3 tables names
+				  String groupKey = key.toString();//used for excluding the tables between reducers on the same physical computer
+				  String xTable = "x_article_" + groupKey;
+				  String yTable = "y_article_author_" + groupKey;
+				  String zTable = "z_persons_" + groupKey;
+				  String x_yRes = "x_yRes" + groupKey;
+		          String final_res = "final_res_" + groupKey;
+				 // statement.executeUpdate("drop table if exists "+ xTable + "," + yTable + "," + zTable + "," + x_yRes + "," + final_res );//clear old tables
+				  statement.executeUpdate("CREATE temporary TABLE "+ xTable + " (article_id CHAR(20), publication_id CHAR(20)) ");
+			      statement.executeUpdate("CREATE temporary TABLE "+ yTable + " (article_id CHAR(20), person_id CHAR(20)) ");
+		          statement.executeUpdate("CREATE temporary TABLE "+ zTable + " (person_id CHAR(20), first_name CHAR(250), last_name CHAR(250)) ");
+		          String xres = "insert into "+ xTable +" values ";
+		          String yres = "insert into "+ yTable +" values ";
+		          String zres = "insert into "+ zTable +" values ";
+		          
+		          for (Text val :values ) //load values to strings 
+		        	  {
+		        	  String relationValue = val.toString();
+		        	  String keyjoin = relationValue.substring(1, relationValue.length());
+		        	  String [] Val = keyjoin.split("\\s+");
+		        	  if (relationValue.indexOf('X') == 0) 
+		        	//	  statement.executeUpdate("insert into "+ xTable +" values ('" + keyjoin + "','" + val.toString() + "')");//article
+		        		  xres += "('" + Val[0] + "','" + Val[1] + "'),";//article
+		        	  else if (relationValue.indexOf('Y') == 0) 
+		        		  //statement.executeUpdate("insert into "+ yTable +" values ('" + keyjoin + "','" + val.toString() + "')");//article-author
+		        		  yres += "('" + Val[0] + "','" + Val[1] + "'),";
+		        	  else 
+		        	     {
+		        		     //statement.executeUpdate("insert into "+ zTable +" values ('" + keyjoin + "','" + Val[0] + "','" + Val[1] + "')");//persons
+		        		     zres += "('" + Val[0] + "','" + Val[1] + "','" + Val[2] + "'),";
+		        	     }//else
+		        	  }// FOR
+		          //insert data to tables
+		          xres = xres.substring(0, xres.length() -1);
+		          yres = yres.substring(0, yres.length() -1);
+		          zres = zres.substring(0, zres.length() -1);
+		          statement.executeUpdate(xres);//article
+		          statement.executeUpdate(yres);//article-author
+		          statement.executeUpdate(zres);//persons
+		          
+		          LOG.info("Reducer with key -"+ key + ", start join");
+				  int res1 =  statement.executeUpdate("CREATE temporary TABLE " + x_yRes + " (select person_id, "+ xTable + ".article_id, publication_id "
+				      + "from "+ xTable + " inner join "+ yTable + " on " + xTable + ".article_id = " + yTable + ".article_id)");
+				  LOG.info("Reducer with key -"+ key + ", " + res1 + " firstJoinRows");
+				  if (res1 > 0)
+				  {
+					  int res2 = statement.executeUpdate("CREATE temporary TABLE " + final_res + " (select "+ zTable + ".person_id, first_name, last_name, article_id, publication_id "
+					  + "from "+ zTable + " inner join " + x_yRes + " on " + zTable + ".person_id = " + x_yRes + ".person_id)");
+				      LOG.info("Reducer with key -"+ key + ", finish join and start to write, " + res2 + " secondJoinRows");
+				      if (res2 > 0)
+				      {
+ 				    	  ResultSet rs = statement.executeQuery("SELECT * FROM " + final_res);
+				    	  LOG.info("Reducer with key -"+ key + ", write ");
+				    	  while (rs.next())
+				    		  context.write(key, new Text(rs.getString("person_id")+ "\t" + rs.getString("first_name") +
+				    				  "\t" + rs.getString("last_name") + "\t" + rs.getString("article_id") + "\t" + rs.getString("publication_id") ));
+				      }//if-res2
+				 }//if-res1
+				//  statement.executeUpdate("drop table if exists "+ xTable + "," + yTable + "," + zTable + "," + x_yRes + "," + final_res );//clear old tables
+			}//try
+			catch (SQLException  e) { e.printStackTrace(); }
+		}//reduce
+		 protected void cleanup(Context context ) throws IOException, InterruptedException 
+		 {
+				try { statement.close(); connection.close(); }
+				catch (SQLException e) { e.printStackTrace(); }
+		 }//cleanup
+	}//SQLReduce
+	
+public static class newPartitionerClass extends Partitioner<Text, Text> implements  org.apache.hadoop.conf.Configurable
+	
+	{		
 		  int [] PartitionSize;
+		  private static int ANum;
 	      int W = 0 ;//sum downlinks
 		  private static final Log LOG = LogFactory.getLog(newPartitionerClass.class);
 	
 		  @Override
 		    public void setConf (Configuration conf)
 		    {
+		      ANum = Integer.parseInt(conf.get("ANum"));//Article_id
 			  String bwString_RM = "";
 			  String bwNodeString = conf.get("bwNodeString");
 			  bwString_RM = conf.get("bw_RM");
@@ -303,27 +403,28 @@ public class AcmMJ extends Configured implements Tool{
 			  }//if
 			  else
 		    	{
-				  LOG.info("OR_Change-getPartition- Successful conf.get\n"+ bwString_RM + " " +bwNodeString);
+				  LOG.info("OR_Change-newPartitionerClass- Successful conf.get\n"+ bwString_RM + " " +bwNodeString);
 		    	}
 		    	 if (bwString_RM == null)
-			    	 LOG.info("OR_Change-getPartition- No upload-1");
+			    	 LOG.info("OR_Change-newPartitionerClass- No upload-1");
 		    	 else
 		    	 {
 		    		 String [] NodesBw = bwNodeString.split("\\s+");
 		    		 String [] ReducerNodes = bwString_RM.split("\\s+");
 		 	         PartitionSize = new int [ReducerNodes.length];
+		 	        LOG.info("OR_Change-newPartitionerClass- Yes upload\n"+ bwString_RM + " " +bwNodeString + " PartitionSize- ");
 		 	         for (int i=0; i< ReducerNodes.length; i++)
 		 	        	{
 		 	        	 if (ReducerNodes[i] == "master")
 		 	        		PartitionSize[i] = Integer.parseInt(NodesBw[0]);
-		 	        	 if (ReducerNodes[i] == "razoldslave1-len")
+		 	        	 else if (ReducerNodes[i] == "razoldslave1-len")
 			 	        	PartitionSize[i] = Integer.parseInt(NodesBw[1]);
 		 	        	 else
 		 	        		PartitionSize[i] = Integer.parseInt(NodesBw[2]);
 		 	        	 W += PartitionSize[i];
 		 	        	}
-		 	        LOG.info("OR_Change-getPartition- Yes upload\n"+ bwString_RM + " " +bwNodeString);	 	     	   
 		    	 }//else
+		    	 LOG.info("OR_Change-newPartitionerClass- W = " + W);
 		    }//setConf
 		    
 		    @Override
@@ -331,35 +432,40 @@ public class AcmMJ extends Configured implements Tool{
 		    {
 		    	return null;
 		    }
-		    
+		    	    
+		 public static int MJHashEqual (Text key)
+		 {
+			 String mykey = key.toString();
+			 return Character.getNumericValue(mykey.charAt(0)) * ANum + Character.getNumericValue(mykey.charAt(1)); 
+			 
+		 }//MJHashEqual
 		  //important for partitioning tuples with the same reducer ID to the same destination(partition)
 	    @Override
-	    public int getPartition(Text key, Text value, int numPartitions) 
-	    {    	//read time
-	    
+	    public int getPartition(Text key, Text value, int numPartitions)
+	    {	
 	     int res=0;
 	  	 if (W == 0)
-	  		 res =(key.hashCode() & Integer.MAX_VALUE) % numPartitions; 
-	  	 
+	  		 res = (key.hashCode() & Integer.MAX_VALUE) % numPartitions;
+	  		//res = MJHashEqual(key);
 	  	 else
 	  	 {//when we have the new allocation
-	     	 res =(key.hashCode() & Integer.MAX_VALUE) % W;
-	     	 int optPartit = 0;
-	     	 int partitionIndicator = PartitionSize[0];
-	     	 while (res > partitionIndicator)
+	  		 res = (key.hashCode() & Integer.MAX_VALUE) % W; 
+	  		// res = MJHashEqual(key) % W;
+	  		
+	  		 int optPartit = 0;
+	     	 int partitionIndicator = PartitionSize[optPartit];
+	       	 while (partitionIndicator == 0 || res > partitionIndicator)// if PartitionSize[optPartit] is zero
+	       		 // we skip because we should try to avoid use him
 	     	   {
 	     	      optPartit++;        
 	     		  partitionIndicator += PartitionSize[optPartit];
 	     	    }//while
 	     	 res = optPartit;
-	     	 }//else
-
-	  	 
-		  return res;
+	     }//else
+	  	return res;
 	   }//fun getPartition
-	  		
 	}//class newPartitionerClass
-	 
+		 
 	@Override
     public int run (String[] args) throws Exception
     {// input_1 input_2 input_3 output inputsplitSize keySplitVector numReducers downlinkVec JobName
@@ -398,7 +504,8 @@ public class AcmMJ extends Configured implements Tool{
 		Job job = Job.getInstance(conf, args[8]);
 		job.setJarByClass(AcmMJ.class);
 		job.setPartitionerClass(newPartitionerClass.class);
-		job.setReducerClass(ReduceIndex.class);
+		//job.setReducerClass(ReduceIndex.class);
+		job.setReducerClass(SQLReduce.class);
 		job.setInputFormatClass(TextInputFormat.class); // needed?d
 		job.setOutputFormatClass(TextOutputFormat.class); // needed?
 		//job.setOutputFormatClass(SequenceFileOutputFormat.class);
