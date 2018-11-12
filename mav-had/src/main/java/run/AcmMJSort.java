@@ -454,8 +454,8 @@ public class AcmMJSort extends Configured implements Tool{
 		job.setJarByClass(AcmMJSort.class);
 		job.setPartitionerClass(newPartitionerClass.class); 
 		job.setGroupingComparatorClass(TextPair.FirstComparator.class); 
-		//job.setReducerClass(IndexReduceOneLoop.class);
-		job.setReducerClass(SQLReduce.class);
+		job.setReducerClass(IndexReduceOneLoop.class);
+		//job.setReducerClass(SQLReduce.class);
 		
 		job.setInputFormatClass(TextInputFormat.class); // needed?
 		job.setOutputFormatClass(TextOutputFormat.class); // needed?
