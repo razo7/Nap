@@ -1,4 +1,3 @@
--------------------------------------------------------------------------------
-Test set: mav.mav_had.AppTest
--------------------------------------------------------------------------------
-Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.036 s - in mav.mav_had.AppTest
+version https://git-lfs.github.com/spec/v1
+oid sha256:6d161852fa87c1b9f464c89e937ca39dd39c66297fd24bee1e45faa2705b5409
+size 287
