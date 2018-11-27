@@ -334,6 +334,7 @@ public class AcmMJSort extends Configured implements Tool{
 		      ANum = Integer.parseInt(conf.get("ANum"));//Article_id
 			  String bwString_RM = "";
 			  String bwNodeString = conf.get("bwNodeString");
+			  String NodeString = conf.get("NodeString"); //slave names
 			  bwString_RM = conf.get("bw_RM");
 			  if(bwString_RM == null || bwString_RM == "")
 			  {
@@ -359,16 +360,19 @@ public class AcmMJSort extends Configured implements Tool{
 		    	 {
 		    		 String [] NodesBw = bwNodeString.split("\\s+");
 		    		 String [] ReducerNodes = bwString_RM.split("\\s+");
+		    		 String [] slaveNames = NodeString.split("\\s+");
 		 	         PartitionSize = new int [ReducerNodes.length];
 		 	        LOG.info("OR_Change-newPartitionerClass- Yes upload\n"+ bwString_RM + " " +bwNodeString + " PartitionSize- ");
 		 	         for (int i=0; i< ReducerNodes.length; i++)
 		 	        	{
-		 	        	 if (ReducerNodes[i] == "master")
+		 	        	 if (ReducerNodes[i] == slaveNames[0])
 		 	        		PartitionSize[i] = Integer.parseInt(NodesBw[0]);
-		 	        	 else if (ReducerNodes[i] == "razoldslave1-len")
+		 	        	 else if (ReducerNodes[i] == slaveNames[1])
 			 	        	PartitionSize[i] = Integer.parseInt(NodesBw[1]);
+		 	        	 else if (ReducerNodes[i] == slaveNames[2])
+				 	        	PartitionSize[i] = Integer.parseInt(NodesBw[2]);
 		 	        	 else
-		 	        		PartitionSize[i] = Integer.parseInt(NodesBw[2]);
+		 	        		PartitionSize[i] = Integer.parseInt(NodesBw[3]);
 		 	        	 W += PartitionSize[i];
 		 	        	}
 		    	 }//else
@@ -427,16 +431,18 @@ public class AcmMJSort extends Configured implements Tool{
 			    //conf.set("mapreduce.task.profile.reduces", "0-5");
 			    conf.set("mapreduce.task.timeout", "900000"); //15 minutes wait for before killing the task
 			    conf.set("bwNodeString", args[7]); // pass the downlink vector of partitions
+			    conf.set("NodeString", args[6]); // pass the slave names
 			    String [] splitInput = args[5].split("\\s+");
 				conf.set("ANum", splitInput[0]); // pass the table size -Article_id
 				conf.set("BNum", splitInput[1]); // pass the table size -Person_id
 				System.setProperty("hadoop.home/dir", "/");
+				int num_reducers = Integer.parseInt(splitInput[0]) * Integer.parseInt(splitInput[1]);
 				int rounds = Integer.parseInt(args[9]);
 				long [] elaspeJobTimeArr = new long [rounds]; 
 				int totalTime = 0;			
 				for (int i=0; i< rounds; i++)
 				{
-					elaspeJobTimeArr[i] = myRunJob(conf, args, String.valueOf(i));	
+					elaspeJobTimeArr[i] = myRunJob(conf, args, num_reducers, String.valueOf(i));	
 					System.out.println("Job "+ i +" took "+ ((elaspeJobTimeArr[i] /1000) /60) + " minutes and " +((elaspeJobTimeArr[i] /1000)%60) + " seconds");	
 					totalTime += elaspeJobTimeArr[i];
 				}
@@ -448,7 +454,7 @@ public class AcmMJSort extends Configured implements Tool{
 	
     }
 	
-	public static long myRunJob (Configuration conf, String [] args, String index) throws ClassNotFoundException, IOException, InterruptedException
+	public static long myRunJob (Configuration conf, String [] args, int num_reducers, String index) throws ClassNotFoundException, IOException, InterruptedException
 	{
 		Job job = Job.getInstance(conf, args[8]);
 		job.setJarByClass(AcmMJSort.class);
@@ -462,13 +468,15 @@ public class AcmMJSort extends Configured implements Tool{
 		job.setMapOutputKeyClass(TextPair.class);
 		job.setOutputKeyClass(Text.class);
 		job.setOutputValueClass(Text.class);
-		job.setNumReduceTasks(Integer.valueOf(args[6]));
-
+		//job.setNumReduceTasks(Integer.valueOf(args[6]));
+		job.setNumReduceTasks(Integer.valueOf(num_reducers));
+		
 		MultipleInputs.addInputPath(job, new Path(args[0]), TextInputFormat.class, XMapper.class);
 		MultipleInputs.addInputPath(job, new Path(args[1]), TextInputFormat.class, YMapper.class);
 		MultipleInputs.addInputPath(job, new Path(args[2]), TextInputFormat.class, ZMapper.class);
 		FileOutputFormat.setOutputPath(job, new Path(new Path(args[3]),index));
 		System.out.println("Downlinks list: " + args[7]);
+		System.out.println("Slaves list: " + args[7]);
 
 		long start1 = new Date().getTime();
 	    if (!job.waitForCompletion(true))
