@@ -325,14 +325,16 @@ public class AcmMJSort extends Configured implements Tool{
 	{		
 		  int [] PartitionSize;
 		  private static int ANum;
-	      int W = 0 ;//sum downlinks
+		  private static float rangeFix;
+	      private static int W = 0 ;//sum downlinks
 		  private static final Log LOG = LogFactory.getLog(newPartitionerClass.class);
 	
 		  @Override
 		    public void setConf (Configuration conf)
 		    {
 		      ANum = Integer.parseInt(conf.get("ANum"));//Article_id
-			  String bwString_RM = "";
+		      int r = Integer.parseInt(conf.get("r"));//Article_id
+		      String bwString_RM = "";
 			  String bwNodeString = conf.get("bwNodeString");
 			  String NodeString = conf.get("NodeString"); //slave names
 			  bwString_RM = conf.get("bw_RM");
@@ -362,7 +364,7 @@ public class AcmMJSort extends Configured implements Tool{
 		    		 String [] ReducerNodes = bwString_RM.split("\\s+");
 		    		 String [] slaveNames = NodeString.split("\\s+");
 		 	         PartitionSize = new int [ReducerNodes.length];
-		 	        LOG.info("OR_Change-newPartitionerClass- Yes upload\n"+ bwString_RM + " " +bwNodeString + " PartitionSize- ");
+		 	        LOG.info("OR_Change-newPartitionerClass- Yes upload\n"+ bwString_RM + "\nPartitionSize- " +bwNodeString + "\nslaveNames- " + NodeString);
 		 	         for (int i=0; i< ReducerNodes.length; i++)
 		 	        	{
 		 	        	 if (ReducerNodes[i].equals(slaveNames[0]) )
@@ -376,7 +378,9 @@ public class AcmMJSort extends Configured implements Tool{
 		 	        	 W += PartitionSize[i];
 		 	        	}
 		    	 }//else
-		    	 LOG.info("OR_Change-newPartitionerClass- W = " + W);
+		    	// prepareW();
+		    	 rangeFix = (float)(W/r);
+		    	 LOG.info("OR_Change-newPartitionerClass- W = " + W + ", ANum = " + ANum);
 		    }//setConf
 		    
 		    @Override
@@ -384,25 +388,65 @@ public class AcmMJSort extends Configured implements Tool{
 		    {
 		    	return null;
 		    }
-		    	    
+		/*    	    
+		 public static void prepareW ()
+			{
+				int cand = (int) Math.floor(Math.sqrt(W));
+				while (cand > 0)
+				{
+					if (W % cand == 0)
+						break;
+					cand--;
+				}
+				ANum2=cand;
+			 }
+		 */
 		 public static int MJHashEqual (Text key)
 		 {
 			 String mykey = key.toString();
+			 //if (isW)
+				// return Character.getNumericValue(mykey.charAt(0)) * ANum2 + Character.getNumericValue(mykey.charAt(1));
 			 return Character.getNumericValue(mykey.charAt(0)) * ANum + Character.getNumericValue(mykey.charAt(1)); 
 			 
 		 }//MJHashEqual
+		/* public static int getNewKey (TextPair key, Text value)
+		 {
+			 String res;
+			 String s = key.getSecond().toString();
+			 char table = s.charAt(0);
+			 String keyJoin = s.substring(1);
+			 switch (table)
+			 {
+			 case 'X':
+			     for (int i=0; i< ANum2; i++)
+			     {
+			    	 
+			     }
+				 res = 
+				 break;
+			 case 'Y':
+				 break;
+			default:
+				break;			 
+			 }
+			return new Text(res);
+			 context.write(new TextPair (reducerIndex,"X" + splitInput[0]), new Text (splitInput[1]) ); 
+		 }
+		 */
 		  //important for partitioning tuples with the same reducer ID to the same destination(partition)
 	    @Override
 	    public int getPartition(TextPair key, Text value, int numPartitions)
 	    {	
 	     int res=0;
+	     int keyRes = MJHashEqual(key.getFirst());
 	  	 if (W == 0)
-	  		 res = (key.getFirst().hashCode() & Integer.MAX_VALUE) % numPartitions;
-	  		//res = MJHashEqual(key.getFirst());
+	  		 //res = (key.getFirst().hashCode() & Integer.MAX_VALUE) % numPartitions;
+	  		res = keyRes;
 	  	 else
 	  	 {//when we have the new allocation
-	  		 res = (key.getFirst().hashCode() & Integer.MAX_VALUE) % W; 
-	  		// res = MJHashEqual(key.getFirst()) % W;
+	  		 
+	  		//res = (key.getFirst().hashCode() & Integer.MAX_VALUE) % W; 
+	  		res = Math.round(keyRes*rangeFix) ;//extend to W values
 	  		
 	  		 int optPartit = 0;
 	     	 int partitionIndicator = PartitionSize[optPartit];
@@ -438,6 +482,7 @@ public class AcmMJSort extends Configured implements Tool{
 				System.setProperty("hadoop.home/dir", "/");
 				int num_reducers = Integer.parseInt(splitInput[0]) * Integer.parseInt(splitInput[1]);
 				int rounds = Integer.parseInt(args[9]);
+				conf.set("r", String.valueOf(num_reducers)); // pass the num_reducers to newPartitioner Class
 				long [] elaspeJobTimeArr = new long [rounds]; 
 				int totalTime = 0;			
 				for (int i=0; i< rounds; i++)
@@ -475,7 +520,7 @@ public class AcmMJSort extends Configured implements Tool{
 		MultipleInputs.addInputPath(job, new Path(args[1]), TextInputFormat.class, YMapper.class);
 		MultipleInputs.addInputPath(job, new Path(args[2]), TextInputFormat.class, ZMapper.class);
 		FileOutputFormat.setOutputPath(job, new Path(new Path(args[3]),index));
-		System.out.println("Num reducers: " + String.valueOf(num_reducers) + "\nSlaves list: " + args[6] + "\nDownlinks list:" + args[7]);		
+		System.out.println("Num reducers: " + String.valueOf(num_reducers) + "\nSlaves list: " + args[6] + "\nDownlinks list: " + args[7]);		
 		long start1 = new Date().getTime();
 	    if (!job.waitForCompletion(true))
 	    	System.exit(1);  
