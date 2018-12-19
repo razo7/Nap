@@ -7,9 +7,11 @@ oldFiles/OneWay2$RMapper.class
 oldFiles/MJPair$MJPairGrouper.class
 oldFiles/OneWay2.class
 run/WordCountOR$wcReducer.class
+run/WordCountOR2.class
 examples/WordCount2.class
 examples/TextPair$FirstComparator.class
 examples/MaxTemperature$MaxTemperatureReducer.class
+run/WordCountOR2$wcReducer.class
 oldFiles/OneWay2$PartitionerClass.class
 oldFiles/WordCountNew1$dummyReducer.class
 oldFiles/wcWithChange$MyMapper.class
@@ -47,6 +49,7 @@ examples/WordCount2$TokenizerMapper.class
 oldFiles/Cascade$RMapper.class
 run/AcmMJ.class
 examples/MaxTemperature$MaxTemperatureMapper.class
+run/WordCountOR2$wcMapper.class
 run/MinCAndOptP.class
 oldFiles/wcWithChange.class
 run/WordCountOR$newPartitionerClass.class
@@ -56,6 +59,7 @@ examples/TextPair.class
 oldFiles/Cascade$TMapper.class
 test/testDB.class
 oldFiles/OneWayReg.class
+run/WordCountOR2$newPartitionerClass.class
 run/AcmMJ$newPartitionerClass.class
 oldFiles/SortByKeyMapper.class
 oldFiles/WordCountNew1.class

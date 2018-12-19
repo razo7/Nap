@@ -465,7 +465,7 @@ public class AcmMJSort extends Configured implements Tool{
 	 
 	@Override
     public int run (String[] args) throws Exception
-    {// input_1 input_2 input_3 output inputsplitSize keySplitVector numReducers downlinkVec JobName
+    {// input_1 input_2 input_3 output inputsplitSize S_Vector slave_names downlinkVec JobName rounds
 				Configuration conf = getConf();
 				// # of mappers = size_input / split size [Bytes], split size=  max(mapreduce.input.fileinputformat.split.minsize, min(mapreduce.input.fileinputformat.split.maxsize, dfs.blocksize))
 				conf.set("mapreduce.input.fileinputformat.split.minsize", args[4]); 
