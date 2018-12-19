@@ -219,7 +219,7 @@ public class WordCountOR2 extends Configured implements Tool
 
 		FileInputFormat.addInputPath(job, new Path(args[0]));
 		FileOutputFormat.setOutputPath(job, new Path(new Path(args[1]), index));
-		System.out.println("Num reducers: " + args[3] + "\nSlaves list: " + args[4] + "\nDownlinks list: " + args[7]);
+		System.out.println("Num reducers: " + args[3] + "\nSlaves list: " + args[4] + "\nrounds: " + args[7]);
 		long start1 = new Date().getTime();
 		if (!job.waitForCompletion(true))
 			System.exit(1);
