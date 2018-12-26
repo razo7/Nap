@@ -2,7 +2,9 @@ package run;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.StringTokenizer;
 
 import org.apache.commons.io.IOUtils;
@@ -71,7 +73,9 @@ public class WordCountOR2 extends Configured implements Tool
 	public static class newPartitionerClass extends Partitioner<Text, IntWritable> implements  org.apache.hadoop.conf.Configurable
 	{		
 		  int [] PartitionSize;
-		  private static float rangeFix;
+		  int [][] indexReducerBySlave;
+		  int [] countReducerBySlave;
+		//  private static float rangeFix;
 	      private static int W = 0 ;//sum downlinks
 		  private static final Log LOG = LogFactory.getLog(newPartitionerClass.class);
 	
@@ -109,22 +113,34 @@ public class WordCountOR2 extends Configured implements Tool
 		    		 String [] ReducerNodes = bwString_RM.split("\\s+");
 		    		 String [] slaveNames = NodeString.split("\\s+");
 		 	         PartitionSize = new int [ReducerNodes.length];
-		 	        LOG.info("OR_Change-newPartitionerClass- Yes upload\n"+ bwString_RM + "\nPartitionSize- " +bwNodeString + "\nslaveNames- " + NodeString);
+		 	         LOG.info("OR_Change-newPartitionerClass- Yes upload\n"+ bwString_RM + "\nPartitionSize- " +bwNodeString + "\nslaveNames- " + NodeString);
+		 	         indexReducerBySlave = new int [NodesBw.length][r];
+		 	         countReducerBySlave = new int [NodesBw.length];
+		 	        for (int i=0; i< NodesBw.length; i++)
+		 	        	countReducerBySlave[i] = 0;
 		 	         for (int i=0; i< ReducerNodes.length; i++)
 		 	        	{
 		 	        	for (int j=0; j< NodesBw.length; j++)
 		 	        	{
 		 	        		if (ReducerNodes[i].equals(slaveNames[j]))
 		 	        		{
-			 	        		PartitionSize[i] = Integer.parseInt(NodesBw[j]);
+		 	        			indexReducerBySlave[j][countReducerBySlave[j]] = i;
+		 	        			countReducerBySlave[j]++;
+			 	        		//PartitionSize[i] = Integer.parseInt(NodesBw[j]);
 			 	        		continue;
 		 	        		}
 		 	        	}
-		 	        	 W += PartitionSize[i];
+		 	        	 //W += PartitionSize[i];
 		 	        	}
+		 	        for (int j=0; j< NodesBw.length; j++)
+		 	        {
+		 	        	PartitionSize[j] = Integer.parseInt(NodesBw[j]);
+		 	        	W += PartitionSize[j];
+		 	        }
+	 	        	      
+		 	        
 		    	 }//else
-		    	// prepareW();
-		    	 rangeFix = (float)(W/r);
+		    	// rangeFix = (float)(W/r);
 		    	 LOG.info("OR_Change-newPartitionerClass- W = " + W );
 		    }//setConf
 		    
@@ -151,25 +167,32 @@ public class WordCountOR2 extends Configured implements Tool
 	    public int getPartition(Text key, IntWritable value, int numPartitions)
 	    {	
 	     int res=0;
-	     int keyRes = (key.hashCode() & Integer.MAX_VALUE) % numPartitions;
+	     //int keyRes = (key.hashCode() & Integer.MAX_VALUE) % numPartitions;
 	  	 if (W == 0)
 	  		 //res = (key.getFirst().hashCode() & Integer.MAX_VALUE) % numPartitions;
-	  		res = keyRes;
+	  		res = (key.hashCode() & Integer.MAX_VALUE) % numPartitions;
 	  	 else
 	  	 {//when we have the new allocation
 	  		 
 	  		//res = (key.getFirst().hashCode() & Integer.MAX_VALUE) % W; 
-	  		res = Math.round(keyRes*rangeFix) ;//extend to W values
-	  		
+	  		//res = Math.round(keyRes*rangeFix) ;//extend to W values WHY?
+	  		 int oldres = (key.hashCode() & Integer.MAX_VALUE) % W;
+	  		 
 	  		 int optPartit = 0;
 	     	 int partitionIndicator = PartitionSize[optPartit];
-	       	 while (partitionIndicator == 0 || res > partitionIndicator)// if PartitionSize[optPartit] is zero
+	       	 while (partitionIndicator == 0 || oldres > partitionIndicator)// if PartitionSize[optPartit] is zero
 	       		 // we skip because we should try to avoid use him
 	     	   {
 	     	      optPartit++;        
 	     		  partitionIndicator += PartitionSize[optPartit];
 	     	    }//while
-	     	 res = optPartit;
+	       	 int slaveIndex = optPartit; //indexOfSelectedSlave
+	       	 int toReducerIndex = (key.hashCode() & Integer.MAX_VALUE) % countReducerBySlave[slaveIndex];
+	     	 res = indexReducerBySlave[slaveIndex][toReducerIndex];
+	     /*	 LOG.info("Ultimate Test- key = " + key + ", oldres = " + oldres + ", slaveIndex = " + slaveIndex +
+	     			 ", countReducerBySlave[slaveIndex] = " + countReducerBySlave[slaveIndex] + ", toReducerIndex = " + toReducerIndex + 
+	     			 ", res = " + res );
+	     			 */
 	     }//else
 	  	return res;
 	   }//fun getPartition
@@ -219,7 +242,7 @@ public class WordCountOR2 extends Configured implements Tool
 
 		FileInputFormat.addInputPath(job, new Path(args[0]));
 		FileOutputFormat.setOutputPath(job, new Path(new Path(args[1]), index));
-		System.out.println("Num reducers: " + args[3] + "\nSlaves list: " + args[4] + "\nrounds: " + args[7]);
+		System.out.println("Num reducers: " + args[3] + "\nSlaves list: " + args[4] + "\ndownLink: " + args[5]);
 		long start1 = new Date().getTime();
 		if (!job.waitForCompletion(true))
 			System.exit(1);

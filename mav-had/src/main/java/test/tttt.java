@@ -1,5 +1,7 @@
 package test;
 import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 public class tttt {
 private final static Random rand = new Random();
@@ -25,6 +27,13 @@ private final static Random rand = new Random();
 		int W = 7;
 		int x = Math.round(2*(float)W/r);
 		System.out.println(x);
+		int [][] indexReducerBySlave = new int [3][8];
+	     int [] countReducerBySlave = {0,0,0};
+	     ++countReducerBySlave[0];
+	    
+	     indexReducerBySlave[0][0] = 2;
+	 	System.out.println("a " +": "+ "a ".hashCode()  );
+		
      }
 	public static int closeNum (int num)
 	{
