@@ -82,7 +82,7 @@ public class WordCountOR2 extends Configured implements Tool
 		  @Override
 		    public void setConf (Configuration conf)
 		    {
-		      int r = Integer.parseInt(conf.get("r"));//num_reducers
+		     // int r = Integer.parseInt(conf.get("r"));//num_reducers
 		      String bwString_RM = "";
 			  String bwNodeString = conf.get("bwNodeString");
 			  String NodeString = conf.get("NodeString"); //slave names
@@ -114,7 +114,7 @@ public class WordCountOR2 extends Configured implements Tool
 		    		 String [] slaveNames = NodeString.split("\\s+");
 		 	         PartitionSize = new int [ReducerNodes.length];
 		 	         LOG.info("OR_Change-newPartitionerClass- Yes upload\n"+ bwString_RM + "\nPartitionSize- " +bwNodeString + "\nslaveNames- " + NodeString);
-		 	         indexReducerBySlave = new int [NodesBw.length][r];
+		 	         indexReducerBySlave = new int [NodesBw.length][ReducerNodes.length];
 		 	         countReducerBySlave = new int [NodesBw.length];
 		 	        for (int i=0; i< NodesBw.length; i++)
 		 	        	countReducerBySlave[i] = 0;
@@ -137,10 +137,7 @@ public class WordCountOR2 extends Configured implements Tool
 		 	        	PartitionSize[j] = Integer.parseInt(NodesBw[j]);
 		 	        	W += PartitionSize[j];
 		 	        }
-	 	        	      
-		 	        
 		    	 }//else
-		    	// rangeFix = (float)(W/r);
 		    	 LOG.info("OR_Change-newPartitionerClass- W = " + W );
 		    }//setConf
 		    
@@ -149,19 +146,7 @@ public class WordCountOR2 extends Configured implements Tool
 		    {
 		    	return null;
 		    }
-		/*    	    
-		 public static void prepareW ()
-			{
-				int cand = (int) Math.floor(Math.sqrt(W));
-				while (cand > 0)
-				{
-					if (W % cand == 0)
-						break;
-					cand--;
-				}
-				ANum2=cand;
-			 }
-		 */
+		
 		  //important for partitioning tuples with the same reducer ID to the same destination(partition)
 	    @Override
 	    public int getPartition(Text key, IntWritable value, int numPartitions)
@@ -213,7 +198,7 @@ public class WordCountOR2 extends Configured implements Tool
 			System.setProperty("hadoop.home/dir", "/");
 			
 			int rounds = Integer.parseInt(args[7]);
-			conf.set("r", args[3]); // pass the num_reducers to newPartitioner Class
+			//conf.set("r", args[3]); // pass the num_reducers to newPartitioner Class
 			long [] elaspeJobTimeArr = new long [rounds]; 
 			int totalTime = 0;			
 			for (int i=0; i< rounds; i++)
