@@ -168,7 +168,7 @@ public class WordCountOR2 extends Configured implements Tool
 	       	 while (partitionIndicator == 0 || oldres > partitionIndicator)// if PartitionSize[optPartit] is zero
 	       		 // we skip because we should try to avoid use him
 	     	   {
-	     	      optPartit++;        
+	     	      optPartit++;
 	     		  partitionIndicator += PartitionSize[optPartit];
 	     	    }//while
 	       	 int slaveIndex = optPartit; //indexOfSelectedSlave

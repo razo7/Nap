@@ -53,15 +53,15 @@ private final static Random rand = new Random();
 	    		 Rel3.add(i);
 	     }
 	   System.out.println("R1:"+ String.valueOf(Rel1.size())  +"\n\n");
-	     for (Integer r1 : Rel1 )
-	    	 System.out.println(String.valueOf(r1));
+	   //  for (Integer r1 : Rel1 )
+	   // 	 System.out.println(String.valueOf(r1));
 	
 	     System.out.println("R2: "+ String.valueOf(Rel2.size())  +"\n\n");
-	     for (Integer r2 : Rel2 )
-	    	 System.out.println(String.valueOf(r2));
+	  //   for (Integer r2 : Rel2 )
+	  //  	 System.out.println(String.valueOf(r2));
 	     System.out.println("R3:"+ String.valueOf(Rel3.size())  +"\n\n");
-	     for (Integer r3 : Rel3 )
-	    	 System.out.println(String.valueOf(r3));
+	  //   for (Integer r3 : Rel3 )
+	  //  	 System.out.println(String.valueOf(r3));
 	
 	     //System.out.println(s + ", hash= " + String.valueOf(h));    
      }
