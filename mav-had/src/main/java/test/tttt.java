@@ -21,7 +21,7 @@ private final static Random rand = new Random();
 			for (int j=0; j< B; j++)
 			{
 				String b1 = String.valueOf(j);
-                String res3 =a1+b1;
+                String res3 = a1+b1;
 				//System.out.println(res3 +": "+ res3.hashCode()  );
 			}}
 		//System.out.println(closeNum(19));

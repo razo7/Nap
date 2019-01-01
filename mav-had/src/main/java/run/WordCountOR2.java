@@ -2,10 +2,9 @@ package run;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
 import java.util.StringTokenizer;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
@@ -22,19 +21,9 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
-import org.apache.hadoop.mapreduce.lib.input.MultipleInputs;
-import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
-import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
-
-import run.AcmMJSort.IndexReduceOneLoop;
-import run.AcmMJSort.XMapper;
-import run.AcmMJSort.YMapper;
-import run.AcmMJSort.ZMapper;
-import run.AcmMJSort.newPartitionerClass;
-import examples.TextPair;
 
 public class WordCountOR2 extends Configured implements Tool 
 {
@@ -82,12 +71,18 @@ public class WordCountOR2 extends Configured implements Tool
 		  @Override
 		    public void setConf (Configuration conf)
 		    {
+			  int i,j;
 		     // int r = Integer.parseInt(conf.get("r"));//num_reducers
 		      String bwString_RM = "";
 			  String bwNodeString = conf.get("bwNodeString");
 			  String NodeString = conf.get("NodeString"); //slave names
-			  bwString_RM = conf.get("bw_RM");
-			  if(bwString_RM == null || bwString_RM == "")
+			  String [] NodesBw = bwNodeString.split("\\s+");
+			  //bwString_RM = conf.get("bw_RM");
+			  countReducerBySlave = new int [NodesBw.length];
+	 	      for (i=0; i< NodesBw.length; i++)
+	 	        	countReducerBySlave[i] = 0;
+			  String info = "";
+			  while (bwString_RM == "")
 			  {
 		    	try {
 					FileSystem fs = FileSystem.get(URI.create("hdfs://master:9000"), conf);
@@ -100,27 +95,28 @@ public class WordCountOR2 extends Configured implements Tool
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
-			  }//if
-			  else
-		    	{
-				  LOG.info("OR_Change-newPartitionerClass- Successful conf.get\n"+ bwString_RM + " " +bwNodeString);
-		    	}
-		    	 if (bwString_RM == null)
-			    	 LOG.info("OR_Change-newPartitionerClass- No upload-1");
-		    	 else
+		    	 if (bwString_RM == null || bwString_RM == "")
 		    	 {
-		    		 String [] NodesBw = bwNodeString.split("\\s+");
-		    		 String [] ReducerNodes = bwString_RM.split("\\s+");
+			    	 LOG.info("OR_Change-newPartitionerClass- No upload-1");
+			    	/* try {
+						TimeUnit.SECONDS.sleep(2);
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					*/
+		    	 }
+		    	 
+			  }
+			  	     String [] ReducerNodes = bwString_RM.split("\\s+");
 		    		 String [] slaveNames = NodeString.split("\\s+");
-		 	         PartitionSize = new int [ReducerNodes.length];
+		 	         PartitionSize = new int [NodesBw.length];
 		 	         LOG.info("OR_Change-newPartitionerClass- Yes upload\n"+ bwString_RM + "\nPartitionSize- " +bwNodeString + "\nslaveNames- " + NodeString);
 		 	         indexReducerBySlave = new int [NodesBw.length][ReducerNodes.length];
-		 	         countReducerBySlave = new int [NodesBw.length];
-		 	        for (int i=0; i< NodesBw.length; i++)
-		 	        	countReducerBySlave[i] = 0;
-		 	         for (int i=0; i< ReducerNodes.length; i++)
+		 	     
+		 	         for (i=0; i< ReducerNodes.length; i++)
 		 	        	{
-		 	        	for (int j=0; j< NodesBw.length; j++)
+		 	        	for (j=0; j< NodesBw.length; j++)
 		 	        	{
 		 	        		if (ReducerNodes[i].equals(slaveNames[j]))
 		 	        		{
@@ -132,13 +128,19 @@ public class WordCountOR2 extends Configured implements Tool
 		 	        	}
 		 	        	 //W += PartitionSize[i];
 		 	        	}
-		 	        for (int j=0; j< NodesBw.length; j++)
+		 	        for (j=0; j< NodesBw.length; j++)
 		 	        {
 		 	        	PartitionSize[j] = Integer.parseInt(NodesBw[j]);
 		 	        	W += PartitionSize[j];
 		 	        }
-		    	 }//else
-		    	 LOG.info("OR_Change-newPartitionerClass- W = " + W );
+		 	        for (i=0; i<NodesBw.length; i++)
+		 	        {
+		 	        for (j=0; j< countReducerBySlave[i]; j++)
+		 	        	info = info + String.valueOf(indexReducerBySlave[i][j]) + " ";
+		 	       info +="\n";
+		 	        }
+		    	 LOG.info("OR_Change-newPartitionerClass- W = " + W + ", Counters\n" + countReducerBySlave[0] + ", " 
+		    	 + countReducerBySlave[1] + ", " + countReducerBySlave[2] + "\nIndices:\n" + info  );
 		    }//setConf
 		    
 		    @Override
@@ -163,17 +165,19 @@ public class WordCountOR2 extends Configured implements Tool
 	  		//res = Math.round(keyRes*rangeFix) ;//extend to W values WHY?
 	  		 int oldres = (key.hashCode() & Integer.MAX_VALUE) % W;
 	  		 
-	  		 int optPartit = 0;
-	     	 int partitionIndicator = PartitionSize[optPartit];
+	  		 int slaveIndex = 0;//indexOfSelectedSlave
+	     	 int partitionIndicator = PartitionSize[slaveIndex];
 	       	 while (partitionIndicator == 0 || oldres > partitionIndicator)// if PartitionSize[optPartit] is zero
-	       		 // we skip because we should try to avoid use him
-	     	   {
-	     	      optPartit++;
-	     		  partitionIndicator += PartitionSize[optPartit];
-	     	    }//while
-	       	 int slaveIndex = optPartit; //indexOfSelectedSlave
-	       	 int toReducerIndex = (key.hashCode() & Integer.MAX_VALUE) % countReducerBySlave[slaveIndex];
-	     	 res = indexReducerBySlave[slaveIndex][toReducerIndex];
+	       	   { // we skip because we should try to avoid use him
+	       		slaveIndex++;
+	     		  partitionIndicator += PartitionSize[slaveIndex];
+	     	   }//while
+	       	 
+	       	 if (countReducerBySlave[slaveIndex] > 0)
+	       	 {
+	       		 int toReducerIndex = (key.hashCode() & Integer.MAX_VALUE) % countReducerBySlave[slaveIndex];
+	       		res = indexReducerBySlave[slaveIndex][toReducerIndex];
+	       	 }
 	     /*	 LOG.info("Ultimate Test- key = " + key + ", oldres = " + oldres + ", slaveIndex = " + slaveIndex +
 	     			 ", countReducerBySlave[slaveIndex] = " + countReducerBySlave[slaveIndex] + ", toReducerIndex = " + toReducerIndex + 
 	     			 ", res = " + res );
