@@ -64,6 +64,7 @@ public class WordCountOR2 extends Configured implements Tool
 		  int [] PartitionSize;
 		  int [][] indexReducerBySlave;
 		  int [] countReducerBySlave;
+		  int [] reducersSlaveIndices;
 		//  private static float rangeFix;
 	      private static int W = 0 ;//sum downlinks
 		  private static final Log LOG = LogFactory.getLog(newPartitionerClass.class);
@@ -79,6 +80,7 @@ public class WordCountOR2 extends Configured implements Tool
 			  String [] NodesBw = bwNodeString.split("\\s+");
 			  //bwString_RM = conf.get("bw_RM");
 			  countReducerBySlave = new int [NodesBw.length];
+			  reducersSlaveIndices= new int [NodesBw.length];
 	 	      for (i=0; i< NodesBw.length; i++)
 	 	        	countReducerBySlave[i] = 0;
 			  String info = "";
@@ -122,16 +124,20 @@ public class WordCountOR2 extends Configured implements Tool
 		 	        		{
 		 	        			indexReducerBySlave[j][countReducerBySlave[j]] = i;
 		 	        			countReducerBySlave[j]++;
-			 	        		//PartitionSize[i] = Integer.parseInt(NodesBw[j]);
 			 	        		continue;
 		 	        		}
 		 	        	}
-		 	        	 //W += PartitionSize[i];
 		 	        	}
-		 	        for (j=0; j< NodesBw.length; j++)
+		 	         int indexPsize = 0;
+		 	        for (j = 0; j < NodesBw.length; j++)
 		 	        {
-		 	        	PartitionSize[j] = Integer.parseInt(NodesBw[j]);
-		 	        	W += PartitionSize[j];
+		 	        	if (countReducerBySlave[j] > 0)
+		 	        	{
+		 	        		PartitionSize[indexPsize] = Integer.parseInt(NodesBw[j]);
+		 	        		W += PartitionSize[indexPsize];
+		 	        		reducersSlaveIndices[indexPsize] = j; 
+		 	        		indexPsize++;
+		 	        	}
 		 	        }
 		 	        for (i=0; i<NodesBw.length; i++)
 		 	        {
@@ -160,9 +166,6 @@ public class WordCountOR2 extends Configured implements Tool
 	  		res = (key.hashCode() & Integer.MAX_VALUE) % numPartitions;
 	  	 else
 	  	 {//when we have the new allocation
-	  		 
-	  		//res = (key.getFirst().hashCode() & Integer.MAX_VALUE) % W; 
-	  		//res = Math.round(keyRes*rangeFix) ;//extend to W values WHY?
 	  		 int oldres = (key.hashCode() & Integer.MAX_VALUE) % W;
 	  		 
 	  		 int slaveIndex = 0;//indexOfSelectedSlave
@@ -172,7 +175,7 @@ public class WordCountOR2 extends Configured implements Tool
 	       		slaveIndex++;
 	     		  partitionIndicator += PartitionSize[slaveIndex];
 	     	   }//while
-	       	 
+	       	 slaveIndex = reducersSlaveIndices[slaveIndex];
 	       	 if (countReducerBySlave[slaveIndex] > 0)
 	       	 {
 	       		 int toReducerIndex = (key.hashCode() & Integer.MAX_VALUE) % countReducerBySlave[slaveIndex];
