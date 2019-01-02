@@ -98,18 +98,8 @@ public class WordCountOR2 extends Configured implements Tool
 					e.printStackTrace();
 				}
 		    	 if (bwString_RM == null || bwString_RM == "")
-		    	 {
-			    	 LOG.info("OR_Change-newPartitionerClass- No upload-1");
-			    	/* try {
-						TimeUnit.SECONDS.sleep(2);
-					} catch (InterruptedException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-					*/
-		    	 }
-		    	 
-			  }
+		    		 LOG.info("OR_Change-newPartitionerClass- No upload-1");
+			   }//while
 			  	     String [] ReducerNodes = bwString_RM.split("\\s+");
 		    		 String [] slaveNames = NodeString.split("\\s+");
 		 	         PartitionSize = new int [NodesBw.length];
@@ -175,12 +165,12 @@ public class WordCountOR2 extends Configured implements Tool
 	       		slaveIndex++;
 	     		  partitionIndicator += PartitionSize[slaveIndex];
 	     	   }//while
-	       	 slaveIndex = reducersSlaveIndices[slaveIndex];
-	       	 if (countReducerBySlave[slaveIndex] > 0)
-	       	 {
-	       		 int toReducerIndex = (key.hashCode() & Integer.MAX_VALUE) % countReducerBySlave[slaveIndex];
-	       		res = indexReducerBySlave[slaveIndex][toReducerIndex];
-	       	 }
+	       	 int realSlaveIndex = reducersSlaveIndices[slaveIndex];
+	//       	 if (countReducerBySlave[realSlaveIndex] > 0)
+	  //     	 {
+	       		 int toReducerIndex = (key.hashCode() & Integer.MAX_VALUE) % countReducerBySlave[realSlaveIndex];
+	       		res = indexReducerBySlave[realSlaveIndex][toReducerIndex];
+	    //   	 }
 	     /*	 LOG.info("Ultimate Test- key = " + key + ", oldres = " + oldres + ", slaveIndex = " + slaveIndex +
 	     			 ", countReducerBySlave[slaveIndex] = " + countReducerBySlave[slaveIndex] + ", toReducerIndex = " + toReducerIndex + 
 	     			 ", res = " + res );
