@@ -140,8 +140,7 @@ public class WordCountOR2 extends Configured implements Tool
 		 	        	     infoIndices = infoIndices + String.valueOf(reducerIndicesPerSlave[i][j]) + " ";
 		 	            		 	      
 		 	        }
-		    	 LOG.info("OR_Change-newPartitionerClass- W = " + W + ", slaves Size\n" + infoSlavesBW + "\nCounters\n" + infoCounters + "\nIndices:" 
-		 	        + infoIndices +"\nreducersSlaveIndices:\n" + infoSlavesIndices );
+		   // 	 LOG.info("OR_Change-newPartitionerClass- W = " + W + ", slaves Size\n" + infoSlavesBW + "\nCounters\n" + infoCounters + "\nIndices:" + infoIndices +"\nreducersSlaveIndices:\n" + infoSlavesIndices );
 		    }//setConf
 		    
 		    @Override
@@ -168,17 +167,10 @@ public class WordCountOR2 extends Configured implements Tool
 	     		  partitionIndicator += slaveSize[slaveIndex];
 	     	   }//while
 	       	 int realSlaveIndex = reducersSlaveIndices[slaveIndex];
-	       	// LOG.info("my key - " + key + ", oldres= " +  String.valueOf(oldres) + ", slaveIndex= " + String.valueOf(slaveIndex) +
-	       	//		 ", partitionIndicator= " + String.valueOf(partitionIndicator) + ", slave= " + String.valueOf(realSlaveIndex) );
-	//       	 if (countReducerBySlave[realSlaveIndex] > 0)
-	  //     	 {
-	       		 int toReducerIndex = (key.hashCode() & Integer.MAX_VALUE) % counterReducers[realSlaveIndex];
-	       		res = reducerIndicesPerSlave[realSlaveIndex][toReducerIndex];
-	    //   	 }
-	     /*	 LOG.info("Ultimate Test- key = " + key + ", oldres = " + oldres + ", slaveIndex = " + slaveIndex +
-	     			 ", countReducerBySlave[slaveIndex] = " + countReducerBySlave[slaveIndex] + ", toReducerIndex = " + toReducerIndex + 
-	     			 ", res = " + res );
-	     			 */
+	      	// LOG.info("my key - " + key + ", oldres= " +  String.valueOf(oldres) + ", slaveIndex= " + String.valueOf(slaveIndex) + ", partitionIndicator= " + String.valueOf(partitionIndicator) + ", slave= " + String.valueOf(realSlaveIndex) );
+	         int toReducerIndex = (key.hashCode() & Integer.MAX_VALUE) % counterReducers[realSlaveIndex];
+	       	 res = reducerIndicesPerSlave[realSlaveIndex][toReducerIndex];
+	     //  LOG.info("Ultimate Test- key = " + key + ", oldres = " + oldres + ", slaveIndex = " + slaveIndex +  ", countReducerBySlave[slaveIndex] = " + countReducerBySlave[slaveIndex] + ", toReducerIndex = " + toReducerIndex + ", res = " + res );
 	     }//else
 	  	return res;
 	   }//fun getPartition

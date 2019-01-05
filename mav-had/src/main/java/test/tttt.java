@@ -38,16 +38,16 @@ private final static Random rand = new Random();
 	     List <Integer> Rel1 = new ArrayList<Integer>();
 	     List <Integer> Rel2 = new ArrayList<Integer>();
 	     List <Integer> Rel3 = new ArrayList<Integer>();
-	     int num = 4;
+	     int num = 7;
 	     for (int i = 0; i < 10000; i++)
 	     {
 	    	 String s = String.valueOf(i);
 	    	 Text t = new Text (s);
 	    	 int h = t.hashCode()  & Integer.MAX_VALUE;
 	    	 int m = h % num;
-	    	 if (m < 3)
+	    	 if (m <= 3)
 	       		 Rel1.add(i);
-	    	 else if(m < 4)
+	    	 else if(m <= 5)
 	    		 Rel2.add(i);
 	    	 else
 	    		 Rel3.add(i);
