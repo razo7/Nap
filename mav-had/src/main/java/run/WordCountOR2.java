@@ -61,82 +61,87 @@ public class WordCountOR2 extends Configured implements Tool
 
 	public static class newPartitionerClass extends Partitioner<Text, IntWritable> implements  org.apache.hadoop.conf.Configurable
 	{		
-		  int [] PartitionSize;
-		  int [][] indexReducerBySlave;
-		  int [] countReducerBySlave;
-		  int [] reducersSlaveIndices;
-		//  private static float rangeFix;
-	      private static int W = 0 ;//sum downlinks
+		  private static int [] slaveSize; // proportion of slaves BW
+		  private static int [][] reducerIndicesPerSlave; // indices of reducers in reducerArrayHDFS according to slave
+		  private static int [] counterReducers; // counter of reducers per slave
+		  private static int [] reducersSlaveIndices; // mapping from all the slaves to working slaves in reduce
+	      private static int W = 0 ; //sum of downlinks (slaveSize)
 		  private static final Log LOG = LogFactory.getLog(newPartitionerClass.class);
-	
-		  @Override
+	  @Override
 		    public void setConf (Configuration conf)
 		    {
 			  int i,j;
 		     // int r = Integer.parseInt(conf.get("r"));//num_reducers
-		      String bwString_RM = "";
+		      String reducerArrayHDFS = "";
 			  String bwNodeString = conf.get("bwNodeString");
 			  String NodeString = conf.get("NodeString"); //slave names
-			  String [] NodesBw = bwNodeString.split("\\s+");
-			  //bwString_RM = conf.get("bw_RM");
-			  countReducerBySlave = new int [NodesBw.length];
-			  reducersSlaveIndices= new int [NodesBw.length];
-	 	      for (i=0; i< NodesBw.length; i++)
-	 	        	countReducerBySlave[i] = 0;
-			  String info = "";
-			  while (bwString_RM == "")
+			  String [] slavesBW = bwNodeString.split("\\s+"); // array of slave AVG downlink, must be in ascending order!
+			  String [] slaveNames = NodeString.split("\\s+"); // array of slave names
+			  counterReducers = new int [slavesBW.length];
+			  slaveSize = new int [slavesBW.length];
+			  reducersSlaveIndices= new int [slavesBW.length];
+	 	      for (i=0; i< slavesBW.length; i++)
+	 	    	 counterReducers[i] = 0; // initialize the array to zero
+			  String infoIndices = ""; //indices of reducers for debugging
+			  String infoCounters = ""; //counter of reducers for debugging
+			  String infoSlavesIndices = ""; //Mapping indices of reducers for debugging
+			  String infoSlavesBW = ""; //Mapping indices of reducers for debugging
+			  while (reducerArrayHDFS == "")
 			  {
 		    	try {
 					FileSystem fs = FileSystem.get(URI.create("hdfs://master:9000"), conf);
 					Path hdfsPath = new Path("/user/hadoop2/HDFS_fileFromHeartbeat");
 		        	FSDataInputStream inputStream = fs.open(hdfsPath);
-			        //Classical input stream usage
-			        String out = IOUtils.toString(inputStream, "UTF-8");
-			        bwString_RM = out.toString();			
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-		    	 if (bwString_RM == null || bwString_RM == "")
+			        String out = IOUtils.toString(inputStream, "UTF-8");//Classical input stream usage
+			        reducerArrayHDFS = out.toString(); 
+				    }//try
+		    	catch (IOException e) { e.printStackTrace(); }
+		    	
+		    	if (reducerArrayHDFS == null || reducerArrayHDFS == "")
 		    		 LOG.info("OR_Change-newPartitionerClass- No upload-1");
 			   }//while
-			  	     String [] ReducerNodes = bwString_RM.split("\\s+");
-		    		 String [] slaveNames = NodeString.split("\\s+");
-		 	         PartitionSize = new int [NodesBw.length];
-		 	         LOG.info("OR_Change-newPartitionerClass- Yes upload\n"+ bwString_RM + "\nPartitionSize- " +bwNodeString + "\nslaveNames- " + NodeString);
-		 	         indexReducerBySlave = new int [NodesBw.length][ReducerNodes.length];
+			  	     String [] reducerSlaves = reducerArrayHDFS.split("\\s+"); // array of reducer's slaves according to the their ID
+		    		 LOG.info("OR_Change-newPartitionerClass- Yes upload\n"+ reducerArrayHDFS + "\nPartitionSize- " + bwNodeString + "\nslaveNames- " + NodeString);
+		 	        reducerIndicesPerSlave = new int [slavesBW.length][reducerSlaves.length];
 		 	     
-		 	         for (i=0; i< ReducerNodes.length; i++)
+		 	         for (i=0; i< reducerSlaves.length; i++)
 		 	        	{
-		 	        	for (j=0; j< NodesBw.length; j++)
-		 	        	{
-		 	        		if (ReducerNodes[i].equals(slaveNames[j]))
+		 	        	 for (j=0; j< slaveNames.length; j++)
+		 	        	 {
+		 	        		if (reducerSlaves[i].equals(slaveNames[j]))
 		 	        		{
-		 	        			indexReducerBySlave[j][countReducerBySlave[j]] = i;
-		 	        			countReducerBySlave[j]++;
+		 	        			reducerIndicesPerSlave[j][counterReducers[j]] = i;
+		 	        			counterReducers[j]++;
 			 	        		continue;
-		 	        		}
-		 	        	}
-		 	        	}
-		 	         int indexPsize = 0;
-		 	        for (j = 0; j < NodesBw.length; j++)
+		 	        		}//if
+		 	        	 }//for
+		 	        	}//for
+		 	         j = 0;
+		 	        for (i = 0; i < slavesBW.length; i++)
 		 	        {
-		 	        	if (countReducerBySlave[j] > 0)
+		 	        	if (counterReducers[i] > 0)
 		 	        	{
-		 	        		PartitionSize[indexPsize] = Integer.parseInt(NodesBw[j]);
-		 	        		W += PartitionSize[indexPsize];
-		 	        		reducersSlaveIndices[indexPsize] = j; 
-		 	        		indexPsize++;
-		 	        	}
-		 	        }
-		 	        for (i=0; i<NodesBw.length; i++)
+		 	        		slaveSize[j] = Integer.parseInt(slavesBW[i]);
+		 	        		infoSlavesBW = infoSlavesBW + slavesBW[i] + ", ";
+		 	        		W += slaveSize[j];
+		 	        		reducersSlaveIndices[j] = i; 
+		 	        		j++;
+		 	        		
+		 	        	} //if
+		 	        }//for
+		 	        // just for debugging with LOG
+		 	        for (i=0; i<slavesBW.length; i++)
 		 	        {
-		 	        for (j=0; j< countReducerBySlave[i]; j++)
-		 	        	info = info + String.valueOf(indexReducerBySlave[i][j]) + " ";
-		 	       info +="\n";
+		 	        	infoCounters = infoCounters + String.valueOf(counterReducers[i]) + ", ";
+		 	        	if (counterReducers[i] > 0)
+		 	        	     infoSlavesIndices = infoSlavesIndices + "(" + String.valueOf(i) + ", " + String.valueOf(reducersSlaveIndices[i]) + "), ";
+		 	        	infoIndices +="\n";
+		 	        	for (j=0; j< counterReducers[i]; j++)
+		 	        	     infoIndices = infoIndices + String.valueOf(reducerIndicesPerSlave[i][j]) + " ";
+		 	            		 	      
 		 	        }
-		    	 LOG.info("OR_Change-newPartitionerClass- W = " + W + ", Counters\n" + countReducerBySlave[0] + ", " 
-		    	 + countReducerBySlave[1] + ", " + countReducerBySlave[2] + "\nIndices:\n" + info  );
+		    	 LOG.info("OR_Change-newPartitionerClass- W = " + W + ", slaves Size\n" + infoSlavesBW + "\nCounters\n" + infoCounters + "\nIndices:" 
+		 	        + infoIndices +"\nreducersSlaveIndices:\n" + infoSlavesIndices );
 		    }//setConf
 		    
 		    @Override
@@ -149,27 +154,26 @@ public class WordCountOR2 extends Configured implements Tool
 	    @Override
 	    public int getPartition(Text key, IntWritable value, int numPartitions)
 	    {	
-	     int res=0;
-	     //int keyRes = (key.hashCode() & Integer.MAX_VALUE) % numPartitions;
+	     int res = 0; //the default partition
 	  	 if (W == 0)
-	  		 //res = (key.getFirst().hashCode() & Integer.MAX_VALUE) % numPartitions;
-	  		res = (key.hashCode() & Integer.MAX_VALUE) % numPartitions;
+	  		res = (key.hashCode() & Integer.MAX_VALUE) % numPartitions; // when W=0 we partition the tuples evenly
 	  	 else
 	  	 {//when we have the new allocation
-	  		 int oldres = (key.hashCode() & Integer.MAX_VALUE) % W;
-	  		 
-	  		 int slaveIndex = 0;//indexOfSelectedSlave
-	     	 int partitionIndicator = PartitionSize[slaveIndex];
-	       	 while (partitionIndicator == 0 || oldres > partitionIndicator)// if PartitionSize[optPartit] is zero
+	  		 int oldres = (key.hashCode() & Integer.MAX_VALUE) % W; // when W>0 we partition the tuples according to slaveSize
+	  		 int slaveIndex = 0; // index of slave
+	     	 int partitionIndicator = slaveSize[slaveIndex];
+	       	 while (partitionIndicator == 0 || oldres >= partitionIndicator)// if PartitionSize[optPartit] is zero
 	       	   { // we skip because we should try to avoid use him
-	       		slaveIndex++;
-	     		  partitionIndicator += PartitionSize[slaveIndex];
+	       		  slaveIndex++;
+	     		  partitionIndicator += slaveSize[slaveIndex];
 	     	   }//while
 	       	 int realSlaveIndex = reducersSlaveIndices[slaveIndex];
+	       	// LOG.info("my key - " + key + ", oldres= " +  String.valueOf(oldres) + ", slaveIndex= " + String.valueOf(slaveIndex) +
+	       	//		 ", partitionIndicator= " + String.valueOf(partitionIndicator) + ", slave= " + String.valueOf(realSlaveIndex) );
 	//       	 if (countReducerBySlave[realSlaveIndex] > 0)
 	  //     	 {
-	       		 int toReducerIndex = (key.hashCode() & Integer.MAX_VALUE) % countReducerBySlave[realSlaveIndex];
-	       		res = indexReducerBySlave[realSlaveIndex][toReducerIndex];
+	       		 int toReducerIndex = (key.hashCode() & Integer.MAX_VALUE) % counterReducers[realSlaveIndex];
+	       		res = reducerIndicesPerSlave[realSlaveIndex][toReducerIndex];
 	    //   	 }
 	     /*	 LOG.info("Ultimate Test- key = " + key + ", oldres = " + oldres + ", slaveIndex = " + slaveIndex +
 	     			 ", countReducerBySlave[slaveIndex] = " + countReducerBySlave[slaveIndex] + ", toReducerIndex = " + toReducerIndex + 
