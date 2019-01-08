@@ -21,9 +21,15 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.MultipleInputs;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
+
+import run.AcmMJSort.XMapper;
+import run.AcmMJSort.YMapper;
+import run.AcmMJSort.ZMapper;
 
 public class WordCountOR2 extends Configured implements Tool 
 {
@@ -121,6 +127,7 @@ public class WordCountOR2 extends Configured implements Tool
 		 	        {
 		 	        	if (counterReducers[i] > 0)
 		 	        	{
+				 	         /// add blacklist code
 		 	        		slaveSize[j] = Integer.parseInt(slavesBW[i]);
 		 	        		infoSlavesBW = infoSlavesBW + slavesBW[i] + ", ";
 		 	        		W += slaveSize[j];
