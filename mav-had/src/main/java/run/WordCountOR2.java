@@ -78,7 +78,8 @@ public class WordCountOR2 extends Configured implements Tool
 		    {
 			  int i,j;
 		     // int r = Integer.parseInt(conf.get("r"));//num_reducers
-		      String reducerArrayHDFS = "";
+		      String mapperrArrayHDFS = "";//mappersLocationString
+		      String reducerArrayHDFS = "";//reducersLocationString
 			  String bwNodeString = conf.get("bwNodeString");
 			  String NodeString = conf.get("NodeString"); //slave names
 			  String [] slavesBW = bwNodeString.split("\\s+"); // array of slave AVG downlink, must be in ascending order!
@@ -96,18 +97,25 @@ public class WordCountOR2 extends Configured implements Tool
 			  {
 		    	try {
 					FileSystem fs = FileSystem.get(URI.create("hdfs://master:9000"), conf);
-					Path hdfsPath = new Path("/user/hadoop2/HDFS_fileFromHeartbeat");
-		        	FSDataInputStream inputStream = fs.open(hdfsPath);
-			        String out = IOUtils.toString(inputStream, "UTF-8");//Classical input stream usage
-			        reducerArrayHDFS = out.toString(); 
+					//mappers
+					Path hdfsPathMappers = new Path("/mappersLocations");
+		        	FSDataInputStream inputStreamM = fs.open(hdfsPathMappers);
+			        String outM = IOUtils.toString(inputStreamM, "UTF-8");//Classical input stream usage
+			        mapperrArrayHDFS = outM.toString(); 
+				    
+					//reducers
+					Path hdfsPathReducers = new Path("/reducersLocations");
+		        	FSDataInputStream inputStreamR = fs.open(hdfsPathReducers);
+			        String outR = IOUtils.toString(inputStreamR, "UTF-8");//Classical input stream usage
+			        reducerArrayHDFS = outR.toString(); 
 				    }//try
 		    	catch (IOException e) { e.printStackTrace(); }
 		    	
-		    	if (reducerArrayHDFS == null || reducerArrayHDFS == "")
+		    	if (reducerArrayHDFS == "")
 		    		 LOG.info("OR_Change-newPartitionerClass- No upload-1");
 			   }//while
 			  	     String [] reducerSlaves = reducerArrayHDFS.split("\\s+"); // array of reducer's slaves according to the their ID
-		    		 LOG.info("OR_Change-newPartitionerClass- Yes upload\n"+ reducerArrayHDFS + "\nPartitionSize- " + bwNodeString + "\nslaveNames- " + NodeString);
+		    		 LOG.info("OR_Change-newPartitionerClass- Yes upload\nMappers: "+ mapperrArrayHDFS + "\nReducers: " + reducerArrayHDFS + "\nPartitionSize- " + bwNodeString + "\nslaveNames- " + NodeString);
 		 	        reducerIndicesPerSlave = new int [slavesBW.length][reducerSlaves.length];
 		 	     
 		 	         for (i=0; i< reducerSlaves.length; i++)

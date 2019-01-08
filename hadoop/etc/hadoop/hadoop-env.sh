@@ -22,9 +22,11 @@
 # remote nodes.
 
 # The java implementation to use.
+
 #OR CHNAGE export JAVA_HOME=${JAVA_HOME}
 export JAVA_HOME="/usr/lib/jvm/java-8-oracle"
-
+export HADOOP_HOME="/usr/local/hadoop"
+#OR CHNAGE
 
 # The jsvc implementation to use. Jsvc is required to run secure datanodes
 # that bind to privileged ports to provide authentication of data transfer

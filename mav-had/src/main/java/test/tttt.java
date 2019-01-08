@@ -62,7 +62,11 @@ private final static Random rand = new Random();
 	     System.out.println("R3:"+ String.valueOf(Rel3.size())  +"\n\n");
 	  //   for (Integer r3 : Rel3 )
 	  //  	 System.out.println(String.valueOf(r3));
-	
+	String ss = "1 2 3 :4 5 6 :6 7";
+	String [] s1 = ss.split(":");
+	String [] s2 = s1[0].split("\\s+");
+	     System.out.println(s2[2]);
+	     
 	     //System.out.println(s + ", hash= " + String.valueOf(h));    
      }
 	public static int closeNum (int num)

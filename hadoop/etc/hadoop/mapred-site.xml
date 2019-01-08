@@ -28,6 +28,7 @@
 	    <description>Reducers start shuffling based on a threshold of percentage of mappers that have finished, 0-> there is no waiting, 1-> every reducer waits
 		https://stackoverflow.com/questions/11672676/when-do-reduce-tasks-start-in-hadoop/11673808</description>
     </property>
+
 	<property>
 		<name>mapreduce.jobhistory.address</name>
 		<value>master:10020</value> 
