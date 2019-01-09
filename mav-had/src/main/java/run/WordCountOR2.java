@@ -77,18 +77,23 @@ public class WordCountOR2 extends Configured implements Tool
 		    public void setConf (Configuration conf)
 		    {
 			  int i,j;
-		     // int r = Integer.parseInt(conf.get("r"));//num_reducers
 		      String mapperrArrayHDFS = "";//mappersLocationString
 		      String reducerArrayHDFS = "";//reducersLocationString
 			  String bwNodeString = conf.get("bwNodeString");
 			  String NodeString = conf.get("NodeString"); //slave names
-			  String [] slavesBW = bwNodeString.split("\\s+"); // array of slave AVG downlink, must be in ascending order!
+			  String [] slavesBW = bwNodeString.split(":"); // array of slave's downlinks per slave
 			  String [] slaveNames = NodeString.split("\\s+"); // array of slave names
-			  counterReducers = new int [slavesBW.length];
-			  slaveSize = new int [slavesBW.length];
-			  reducersSlaveIndices= new int [slavesBW.length];
-	 	      for (i=0; i< slavesBW.length; i++)
-	 	    	 counterReducers[i] = 0; // initialize the array to zero
+			  int [] counterMappers = new int [slaveNames.length];; // counter of mappers per slave
+			  int [] selectedBW = new int [slaveNames.length];
+			  counterReducers = new int [slaveNames.length];
+			  slaveSize = new int [slaveNames.length];
+			  reducersSlaveIndices= new int [slaveNames.length];
+	 	      for (i=0; i< slaveNames.length; i++)
+	 	          {// initialize the arrays to zero
+	 	    	      counterMappers[i] = 0;
+	 	    	      counterReducers[i] = 0;
+	 	    	      selectedBW[i] = 0;
+	 	          }
 			  String infoIndices = ""; //indices of reducers for debugging
 			  String infoCounters = ""; //counter of reducers for debugging
 			  String infoSlavesIndices = ""; //Mapping indices of reducers for debugging
@@ -114,10 +119,38 @@ public class WordCountOR2 extends Configured implements Tool
 		    	if (reducerArrayHDFS == "")
 		    		 LOG.info("OR_Change-newPartitionerClass- No upload-1");
 			   }//while
-			  	     String [] reducerSlaves = reducerArrayHDFS.split("\\s+"); // array of reducer's slaves according to the their ID
+			         String [] mappersSlaves = mapperrArrayHDFS.split("\\s+"); // array of mapper's slaves according to the their ID
+			         String [] reducerSlaves = reducerArrayHDFS.split("\\s+"); // array of reducer's slaves according to the their ID
 		    		 LOG.info("OR_Change-newPartitionerClass- Yes upload\nMappers: "+ mapperrArrayHDFS + "\nReducers: " + reducerArrayHDFS + "\nPartitionSize- " + bwNodeString + "\nslaveNames- " + NodeString);
-		 	        reducerIndicesPerSlave = new int [slavesBW.length][reducerSlaves.length];
-		 	     
+		    		 //count mappers to pick the right BW array
+		    		 String infoMappersBW = "";
+		    		 String infoMappersAmount = "";
+		    		 for (i=0; i< mappersSlaves.length; i++)
+		 	        	{
+		 	        	 for (j=0; j< slaveNames.length; j++)
+		 	        	 {
+		 	        		if (mappersSlaves[i].equals(slaveNames[j]))
+		 	        		{
+		 	        			counterMappers[j]++;
+			 	        		continue;
+		 	        		}//if
+		 	        	 }//for
+		 	        	}//for
+		    		
+		    		 for (i=0; i< slaveNames.length; i++)
+		 	        	{
+		    			 for (j=0; j< slaveNames.length; j++)
+			 	        	{
+		    			     String [] slaveBW = slavesBW[j].split("\\s+"); // array of slave's downlinks of slave 	        		 
+		 	        	     selectedBW[i] += (Integer.parseInt(slaveBW[i]) * counterMappers[i]);
+			 	        	}
+		    			 selectedBW[i] =  (selectedBW[i] /slaveNames.length);
+		    			 infoMappersAmount += String.valueOf(counterMappers[i]) + " ";
+		    			 infoMappersBW += String.valueOf(selectedBW[i]) + " ";
+		 	        	}
+		    		 LOG.info("OR_Change-newPartitionerClass-mappers \ninfoMappersAmount: "+ infoMappersAmount + "\ninfoMappersBW: " + infoMappersBW);
+		 	         reducerIndicesPerSlave = new int [slaveNames.length][reducerSlaves.length];
+		 	      //count reducers to pick the right allocation of data between slaves
 		 	         for (i=0; i< reducerSlaves.length; i++)
 		 	        	{
 		 	        	 for (j=0; j< slaveNames.length; j++)
@@ -131,13 +164,13 @@ public class WordCountOR2 extends Configured implements Tool
 		 	        	 }//for
 		 	        	}//for
 		 	         j = 0;
-		 	        for (i = 0; i < slavesBW.length; i++)
+		 	        for (i = 0; i < selectedBW.length; i++)
 		 	        {
 		 	        	if (counterReducers[i] > 0)
 		 	        	{
 				 	         /// add blacklist code
-		 	        		slaveSize[j] = Integer.parseInt(slavesBW[i]);
-		 	        		infoSlavesBW = infoSlavesBW + slavesBW[i] + ", ";
+		 	        		slaveSize[j] = selectedBW[i];
+		 	        		infoSlavesBW = infoSlavesBW + selectedBW[i] + ", ";
 		 	        		W += slaveSize[j];
 		 	        		reducersSlaveIndices[j] = i; 
 		 	        		j++;
@@ -145,7 +178,7 @@ public class WordCountOR2 extends Configured implements Tool
 		 	        	} //if
 		 	        }//for
 		 	        // just for debugging with LOG
-		 	        for (i=0; i<slavesBW.length; i++)
+		 	        for (i=0; i<selectedBW.length; i++)
 		 	        {
 		 	        	infoCounters = infoCounters + String.valueOf(counterReducers[i]) + ", ";
 		 	        	if (counterReducers[i] > 0)

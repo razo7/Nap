@@ -20,6 +20,7 @@ import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
@@ -34,6 +35,7 @@ import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
+import run.WordCountOR2.newPartitionerClass;
 import examples.TextPair;
 
 public class AcmMJSort extends Configured implements Tool{
@@ -321,66 +323,95 @@ public class AcmMJSort extends Configured implements Tool{
 	}//SQLReduce
 	
 	public static class newPartitionerClass extends Partitioner<TextPair, Text> implements  org.apache.hadoop.conf.Configurable
-	
 	{		
-		  int [] PartitionSize;
-		  private static int ANum;
-		  private static float rangeFix;
-	      private static int W = 0 ;//sum downlinks
+		  private static int [] slaveSize; // proportion of slaves BW
+		  private static int [][] reducerIndicesPerSlave; // indices of reducers in reducerArrayHDFS according to slave
+		  private static int [] counterReducers; // counter of reducers per slave
+		  private static int [] reducersSlaveIndices; // mapping from all the slaves to working slaves in reduce
+	      private static int W = 0 ; //sum of downlinks (slaveSize)
 		  private static final Log LOG = LogFactory.getLog(newPartitionerClass.class);
-	
-		  @Override
+	  @Override
 		    public void setConf (Configuration conf)
 		    {
-		      ANum = Integer.parseInt(conf.get("ANum"));//Article_id
-		      int r = Integer.parseInt(conf.get("r"));//Article_id
-		      String bwString_RM = "";
+			  int i,j;
+		      String mapperrArrayHDFS = "";//mappersLocationString
+		      String reducerArrayHDFS = "";//reducersLocationString
 			  String bwNodeString = conf.get("bwNodeString");
 			  String NodeString = conf.get("NodeString"); //slave names
-			  bwString_RM = conf.get("bw_RM");
-			  if(bwString_RM == null || bwString_RM == "")
+			  String [] slavesBW = bwNodeString.split("\\s+"); // array of slave AVG downlink, must be in ascending order!
+			  String [] slaveNames = NodeString.split("\\s+"); // array of slave names
+			  counterReducers = new int [slavesBW.length];
+			  slaveSize = new int [slavesBW.length];
+			  reducersSlaveIndices= new int [slavesBW.length];
+	 	      for (i=0; i< slavesBW.length; i++)
+	 	    	 counterReducers[i] = 0; // initialize the array to zero
+			  String infoIndices = ""; //indices of reducers for debugging
+			  String infoCounters = ""; //counter of reducers for debugging
+			  String infoSlavesIndices = ""; //Mapping indices of reducers for debugging
+			  String infoSlavesBW = ""; //Mapping indices of reducers for debugging
+			  while (reducerArrayHDFS == "")
 			  {
 		    	try {
 					FileSystem fs = FileSystem.get(URI.create("hdfs://master:9000"), conf);
-					Path hdfsPath = new Path("/user/hadoop2/HDFS_fileFromHeartbeat");
-		        	FSDataInputStream inputStream = fs.open(hdfsPath);
-			        //Classical input stream usage
-			        String out = IOUtils.toString(inputStream, "UTF-8");
-			        bwString_RM = out.toString();			
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			  }//if
-			  else
-		    	{
-				  LOG.info("OR_Change-newPartitionerClass- Successful conf.get\n"+ bwString_RM + " " +bwNodeString);
-		    	}
-		    	 if (bwString_RM == null)
-			    	 LOG.info("OR_Change-newPartitionerClass- No upload-1");
-		    	 else
-		    	 {
-		    		 String [] NodesBw = bwNodeString.split("\\s+");
-		    		 String [] ReducerNodes = bwString_RM.split("\\s+");
-		    		 String [] slaveNames = NodeString.split("\\s+");
-		 	         PartitionSize = new int [ReducerNodes.length];
-		 	        LOG.info("OR_Change-newPartitionerClass- Yes upload\n"+ bwString_RM + "\nPartitionSize- " +bwNodeString + "\nslaveNames- " + NodeString);
-		 	         for (int i=0; i< ReducerNodes.length; i++)
+					//mappers
+					Path hdfsPathMappers = new Path("/mappersLocations");
+		        	FSDataInputStream inputStreamM = fs.open(hdfsPathMappers);
+			        String outM = IOUtils.toString(inputStreamM, "UTF-8");//Classical input stream usage
+			        mapperrArrayHDFS = outM.toString(); 
+				    
+					//reducers
+					Path hdfsPathReducers = new Path("/reducersLocations");
+		        	FSDataInputStream inputStreamR = fs.open(hdfsPathReducers);
+			        String outR = IOUtils.toString(inputStreamR, "UTF-8");//Classical input stream usage
+			        reducerArrayHDFS = outR.toString(); 
+				    }//try
+		    	catch (IOException e) { e.printStackTrace(); }
+		    	
+		    	if (reducerArrayHDFS == "")
+		    		 LOG.info("OR_Change-newPartitionerClass- No upload-1");
+			   }//while
+			  	     String [] reducerSlaves = reducerArrayHDFS.split("\\s+"); // array of reducer's slaves according to the their ID
+		    		 LOG.info("OR_Change-newPartitionerClass- Yes upload\nMappers: "+ mapperrArrayHDFS + "\nReducers: " + reducerArrayHDFS + "\nPartitionSize- " + bwNodeString + "\nslaveNames- " + NodeString);
+		 	        reducerIndicesPerSlave = new int [slavesBW.length][reducerSlaves.length];
+		 	     
+		 	         for (i=0; i< reducerSlaves.length; i++)
 		 	        	{
-		 	        	 if (ReducerNodes[i].equals(slaveNames[0]) )
-		 	        		PartitionSize[i] = Integer.parseInt(NodesBw[0]);
-		 	        	 else if (ReducerNodes[i].equals(slaveNames[1]) )
-			 	        	PartitionSize[i] = Integer.parseInt(NodesBw[1]);
-		 	        	 else if (ReducerNodes[i].equals(slaveNames[2]) )
-				 	        	PartitionSize[i] = Integer.parseInt(NodesBw[2]);
-		 	        	 else
-		 	        		PartitionSize[i] = Integer.parseInt(NodesBw[3]);
-		 	        	 W += PartitionSize[i];
-		 	        	}
-		    	 }//else
-		    	// prepareW();
-		    	 rangeFix = (float)(W/r);
-		    	 LOG.info("OR_Change-newPartitionerClass- W = " + W + ", ANum = " + ANum);
+		 	        	 for (j=0; j< slaveNames.length; j++)
+		 	        	 {
+		 	        		if (reducerSlaves[i].equals(slaveNames[j]))
+		 	        		{
+		 	        			reducerIndicesPerSlave[j][counterReducers[j]] = i;
+		 	        			counterReducers[j]++;
+			 	        		continue;
+		 	        		}//if
+		 	        	 }//for
+		 	        	}//for
+		 	         j = 0;
+		 	        for (i = 0; i < slavesBW.length; i++)
+		 	        {
+		 	        	if (counterReducers[i] > 0)
+		 	        	{
+				 	         /// add blacklist code
+		 	        		slaveSize[j] = Integer.parseInt(slavesBW[i]);
+		 	        		infoSlavesBW = infoSlavesBW + slavesBW[i] + ", ";
+		 	        		W += slaveSize[j];
+		 	        		reducersSlaveIndices[j] = i; 
+		 	        		j++;
+		 	        		
+		 	        	} //if
+		 	        }//for
+		 	        // just for debugging with LOG
+		 	        for (i=0; i<slavesBW.length; i++)
+		 	        {
+		 	        	infoCounters = infoCounters + String.valueOf(counterReducers[i]) + ", ";
+		 	        	if (counterReducers[i] > 0)
+		 	        	     infoSlavesIndices = infoSlavesIndices + "(" + String.valueOf(i) + ", " + String.valueOf(reducersSlaveIndices[i]) + "), ";
+		 	        	infoIndices +="\n";
+		 	        	for (j=0; j< counterReducers[i]; j++)
+		 	        	     infoIndices = infoIndices + String.valueOf(reducerIndicesPerSlave[i][j]) + " ";
+		 	            		 	      
+		 	        }
+		   // 	 LOG.info("OR_Change-newPartitionerClass- W = " + W + ", slaves Size\n" + infoSlavesBW + "\nCounters\n" + infoCounters + "\nIndices:" + infoIndices +"\nreducersSlaveIndices:\n" + infoSlavesIndices );
 		    }//setConf
 		    
 		    @Override
@@ -388,80 +419,33 @@ public class AcmMJSort extends Configured implements Tool{
 		    {
 		    	return null;
 		    }
-		/*    	    
-		 public static void prepareW ()
-			{
-				int cand = (int) Math.floor(Math.sqrt(W));
-				while (cand > 0)
-				{
-					if (W % cand == 0)
-						break;
-					cand--;
-				}
-				ANum2=cand;
-			 }
-		 */
-		 public static int MJHashEqual (Text key)
-		 {
-			 String mykey = key.toString();
-			 //if (isW)
-				// return Character.getNumericValue(mykey.charAt(0)) * ANum2 + Character.getNumericValue(mykey.charAt(1));
-			 return Character.getNumericValue(mykey.charAt(0)) * ANum + Character.getNumericValue(mykey.charAt(1)); 
-			 
-		 }//MJHashEqual
-		/* public static int getNewKey (TextPair key, Text value)
-		 {
-			 String res;
-			 String s = key.getSecond().toString();
-			 char table = s.charAt(0);
-			 String keyJoin = s.substring(1);
-			 switch (table)
-			 {
-			 case 'X':
-			     for (int i=0; i< ANum2; i++)
-			     {
-			    	 
-			     }
-				 res = 
-				 break;
-			 case 'Y':
-				 break;
-			default:
-				break;			 
-			 }
-			return new Text(res);
-			 context.write(new TextPair (reducerIndex,"X" + splitInput[0]), new Text (splitInput[1]) ); 
-		 }
-		 */
+		
 		  //important for partitioning tuples with the same reducer ID to the same destination(partition)
 	    @Override
 	    public int getPartition(TextPair key, Text value, int numPartitions)
 	    {	
-	     int res=0;
-	     int keyRes = MJHashEqual(key.getFirst());
+	     int res = 0; //the default partition
 	  	 if (W == 0)
-	  		 //res = (key.getFirst().hashCode() & Integer.MAX_VALUE) % numPartitions;
-	  		res = keyRes;
+	  		res = (key.hashCode() & Integer.MAX_VALUE) % numPartitions; // when W=0 we partition the tuples evenly
 	  	 else
 	  	 {//when we have the new allocation
-	  		 
-	  		//res = (key.getFirst().hashCode() & Integer.MAX_VALUE) % W; 
-	  		res = Math.round(keyRes*rangeFix) ;//extend to W values
-	  		
-	  		 int optPartit = 0;
-	     	 int partitionIndicator = PartitionSize[optPartit];
-	       	 while (partitionIndicator == 0 || res > partitionIndicator)// if PartitionSize[optPartit] is zero
-	       		 // we skip because we should try to avoid use him
-	     	   {
-	     	      optPartit++;        
-	     		  partitionIndicator += PartitionSize[optPartit];
-	     	    }//while
-	     	 res = optPartit;
+	  		 int oldres = (key.hashCode() & Integer.MAX_VALUE) % W; // when W>0 we partition the tuples according to slaveSize
+	  		 int slaveIndex = 0; // index of slave
+	     	 int partitionIndicator = slaveSize[slaveIndex];
+	       	 while (partitionIndicator == 0 || oldres >= partitionIndicator)// if PartitionSize[optPartit] is zero
+	       	   { // we skip because we should try to avoid use him
+	       		  slaveIndex++;
+	     		  partitionIndicator += slaveSize[slaveIndex];
+	     	   }//while
+	       	 int realSlaveIndex = reducersSlaveIndices[slaveIndex];
+	      	// LOG.info("my key - " + key + ", oldres= " +  String.valueOf(oldres) + ", slaveIndex= " + String.valueOf(slaveIndex) + ", partitionIndicator= " + String.valueOf(partitionIndicator) + ", slave= " + String.valueOf(realSlaveIndex) );
+	         int toReducerIndex = (key.hashCode() & Integer.MAX_VALUE) % counterReducers[realSlaveIndex];
+	       	 res = reducerIndicesPerSlave[realSlaveIndex][toReducerIndex];
+	     //  LOG.info("Ultimate Test- key = " + key + ", oldres = " + oldres + ", slaveIndex = " + slaveIndex +  ", countReducerBySlave[slaveIndex] = " + countReducerBySlave[slaveIndex] + ", toReducerIndex = " + toReducerIndex + ", res = " + res );
 	     }//else
 	  	return res;
 	   }//fun getPartition
 	}//class newPartitionerClass
-	
 	 
 	@Override
     public int run (String[] args) throws Exception

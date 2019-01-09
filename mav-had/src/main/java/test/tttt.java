@@ -62,10 +62,23 @@ private final static Random rand = new Random();
 	     System.out.println("R3:"+ String.valueOf(Rel3.size())  +"\n\n");
 	  //   for (Integer r3 : Rel3 )
 	  //  	 System.out.println(String.valueOf(r3));
-	String ss = "1 2 3 :4 5 6 :6 7";
+	     int [] dd = new int [2];
+	     dd[0] = 0;
+	     dd[1] = 0;
+	     int [] dd2 = {8,3};
+	String ss = "4 3:6 8";
 	String [] s1 = ss.split(":");
-	String [] s2 = s1[0].split("\\s+");
-	     System.out.println(s2[2]);
+	for ( int i =0; i< s1.length; i++)
+	{
+		for ( int j =0; j< s1.length; j++)
+		{
+			String [] s2 = s1[j].split("\\s+");
+			dd[i] += (Integer.parseInt(s2[i])* dd2[i]); 
+		}
+		 System.out.println(dd[i]/s1.length);
+	}
+	
+	    
 	     
 	     //System.out.println(s + ", hash= " + String.valueOf(h));    
      }
