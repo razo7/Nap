@@ -3,10 +3,13 @@ public class MinCAndOptP
 {
     public static void main(String[] args) throws Exception
     {
-        double [] f = new double []{4, 2 ,1};//Assumption:  array is in descending/ asecending order
-        double [][]  res =  new double[2][f.length];;
-        double s = 2; //joint attributes, 2 for ACM example
-        double Bc_param = 1; // s* Math.pow(x*y*z, 1/s) or for ACM example y+2*Math.pow(x*z, 2) 
+        String [] stringF = args[0].split("\\s+");
+    	double [] f = new double [stringF.length];//Assumption:  array is in descending/ asecending order
+        for (int i = 0 ; i < stringF.length; i++ )
+        	f[i] = Double.parseDouble(stringF[i]);
+    	double [][]  res =  new double[2][f.length];;
+        double s = Double.parseDouble(args[1]); //joint attributes, 2 for ACM example
+        double Bc_param = Double.parseDouble(args[2]); // s* Math.pow(x*y*z, 1/s) or for ACM example y+2*Math.pow(x*z, 2) 
         res = OptPartit(f, s, Bc_param);
         printResult(f, s, res);
     }//main

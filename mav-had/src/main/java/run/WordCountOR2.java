@@ -11,6 +11,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
+import org.apache.hadoop.fs.ContentSummary;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -119,36 +120,49 @@ public class WordCountOR2 extends Configured implements Tool
 		    	if (reducerArrayHDFS == "")
 		    		 LOG.info("OR_Change-newPartitionerClass- No upload-1");
 			   }//while
-			         String [] mappersSlaves = mapperrArrayHDFS.split("\\s+"); // array of mapper's slaves according to the their ID
-			         String [] reducerSlaves = reducerArrayHDFS.split("\\s+"); // array of reducer's slaves according to the their ID
-		    		 LOG.info("OR_Change-newPartitionerClass- Yes upload\nMappers: "+ mapperrArrayHDFS + "\nReducers: " + reducerArrayHDFS + "\nPartitionSize- " + bwNodeString + "\nslaveNames- " + NodeString);
-		    		 //count mappers to pick the right BW array
-		    		 String infoMappersBW = "";
-		    		 String infoMappersAmount = "";
-		    		 for (i=0; i< mappersSlaves.length; i++)
-		 	        	{
-		 	        	 for (j=0; j< slaveNames.length; j++)
-		 	        	 {
-		 	        		if (mappersSlaves[i].equals(slaveNames[j]))
-		 	        		{
-		 	        			counterMappers[j]++;
-			 	        		continue;
-		 	        		}//if
-		 	        	 }//for
-		 	        	}//for
-		    		
-		    		 for (i=0; i< slaveNames.length; i++)
-		 	        	{
-		    			 for (j=0; j< slaveNames.length; j++)
+			  
+			         LOG.info("OR_Change-newPartitionerClass- Yes upload\nMappers: "+ mapperrArrayHDFS + "\nReducers: " + reducerArrayHDFS + "\nPartitionSize- " + bwNodeString + "\nslaveNames- " + NodeString);
+			         String [] testNumSlavesBW = bwNodeString.split("\\s+"); // array of slave's downlinks per slave
+			         if (testNumSlavesBW.length > slaveNames.length)
+			         {
+			        	 String [] mappersSlaves = mapperrArrayHDFS.split("\\s+"); // array of mapper's slaves according to the their ID
+			        	//count mappers to pick the right BW array
+			    		 String infoMappersBW = "";
+			    		 String infoMappersAmount = "";
+			    		 for (i=0; i< mappersSlaves.length; i++)
 			 	        	{
-		    			     String [] slaveBW = slavesBW[j].split("\\s+"); // array of slave's downlinks of slave 	        		 
-		 	        	     selectedBW[i] += (Integer.parseInt(slaveBW[i]) * counterMappers[i]);
+			 	        	 for (j=0; j< slaveNames.length; j++)
+			 	        	 {
+			 	        		if (mappersSlaves[i].equals(slaveNames[j]))
+			 	        		{
+			 	        			counterMappers[j]++;
+				 	        		continue;
+			 	        		}//if
+			 	        	 }//for
+			 	        	}//for
+			    		
+			    		 for (i=0; i< slaveNames.length; i++)
+			 	        	{
+			    			 for (j=0; j< slaveNames.length; j++)
+				 	        	{
+			    			     String [] slaveBW = slavesBW[j].split("\\s+"); // array of slave's downlinks of slave 	        		 
+			 	        	     selectedBW[i] += (Integer.parseInt(slaveBW[i]) * counterMappers[i]);
+				 	        	}
+			    			 selectedBW[i] =  (selectedBW[i] /slaveNames.length);
+			    			 infoMappersAmount += String.valueOf(counterMappers[i]) + " ";
+			    			 infoMappersBW += String.valueOf(selectedBW[i]) + " ";
 			 	        	}
-		    			 selectedBW[i] =  (selectedBW[i] /slaveNames.length);
-		    			 infoMappersAmount += String.valueOf(counterMappers[i]) + " ";
-		    			 infoMappersBW += String.valueOf(selectedBW[i]) + " ";
-		 	        	}
-		    		 LOG.info("OR_Change-newPartitionerClass-mappers \ninfoMappersAmount: "+ infoMappersAmount + "\ninfoMappersBW: " + infoMappersBW);
+			    		 LOG.info("OR_Change-newPartitionerClass-mappers\ninfoMappersAmount: "+ infoMappersAmount + "\ninfoMappersBW: " + infoMappersBW);
+			         }
+			         else
+			         {//average downlink
+			        	 for (i=0; i< slaveNames.length; i++)
+			 	        	{
+			        		  selectedBW[i] = Integer.parseInt(testNumSlavesBW[i]);
+			 	        	} 
+			         }
+			         
+			         String [] reducerSlaves = reducerArrayHDFS.split("\\s+"); // array of reducer's slaves according to the their ID
 		 	         reducerIndicesPerSlave = new int [slaveNames.length][reducerSlaves.length];
 		 	      //count reducers to pick the right allocation of data between slaves
 		 	         for (i=0; i< reducerSlaves.length; i++)
@@ -224,16 +238,26 @@ public class WordCountOR2 extends Configured implements Tool
 	   }//fun getPartition
 	}//class newPartitionerClass
 
+	 public String getSplitSize (Configuration conf, String mappersNum, String file) throws IOException
+	  {
+		 Path path = new Path("/user/hadoop2/" + file);
+		 FileSystem hdfs = path.getFileSystem(conf);
+		 ContentSummary cSummary = hdfs.getContentSummary(path);
+		 int size = (int) cSummary.getLength();
+		 System.out.println("file size = " + String.valueOf(size) ); 
+		 //inputsplitSize
+		 return String.valueOf(size /Integer.parseInt(mappersNum) );
+	  }
+	
 	 public int run (String[] args) throws Exception
-	    {// input output inputsplitSize num_reducers slave_names downlinkVec JobName rounds
+	    {// input output num_mappers num_reducers slave_names downlinkVec JobName rounds
 			Configuration conf = getConf();
+			String inputsplitSize = getSplitSize(conf, args[2], args[0]);
 			// # of mappers = size_input / split size [Bytes], split size=  max(mapreduce.input.fileinputformat.split.minsize, min(mapreduce.input.fileinputformat.split.maxsize, dfs.blocksize))
-			conf.set("mapreduce.input.fileinputformat.split.minsize", args[2]); 
-			conf.set("mapreduce.input.fileinputformat.split.maxsize", args[2]);
+			conf.set("mapreduce.input.fileinputformat.split.minsize", inputsplitSize); 
+			conf.set("mapreduce.input.fileinputformat.split.maxsize", inputsplitSize);
 			conf.set("mapreduce.map.log.level", "DEBUG");
-			//conf.set("mapreduce.task.profile", "true");
-			//conf.set("mapreduce.task.profile.reduces", "0-5");
-			conf.set("mapreduce.task.timeout", "900000"); //15 minutes wait for before killing the task
+			//conf.set("mapreduce.task.timeout", "900000"); //15 minutes wait for before killing the task
 			conf.set("NodeString", args[4]); // pass the slave names
 			conf.set("bwNodeString", args[5]); // pass the downlink vector of partitions
 			System.setProperty("hadoop.home/dir", "/");
