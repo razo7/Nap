@@ -17,6 +17,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
+import org.apache.hadoop.fs.ContentSummary;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -338,13 +339,19 @@ public class AcmMJSort extends Configured implements Tool{
 		      String reducerArrayHDFS = "";//reducersLocationString
 			  String bwNodeString = conf.get("bwNodeString");
 			  String NodeString = conf.get("NodeString"); //slave names
-			  String [] slavesBW = bwNodeString.split("\\s+"); // array of slave AVG downlink, must be in ascending order!
+			  String [] slavesBW = bwNodeString.split(":"); // array of slave's downlinks per slave
 			  String [] slaveNames = NodeString.split("\\s+"); // array of slave names
-			  counterReducers = new int [slavesBW.length];
-			  slaveSize = new int [slavesBW.length];
-			  reducersSlaveIndices= new int [slavesBW.length];
-	 	      for (i=0; i< slavesBW.length; i++)
-	 	    	 counterReducers[i] = 0; // initialize the array to zero
+			  int [] counterMappers = new int [slaveNames.length];; // counter of mappers per slave
+			  int [] selectedBW = new int [slaveNames.length];
+			  counterReducers = new int [slaveNames.length];
+			  slaveSize = new int [slaveNames.length];
+			  reducersSlaveIndices= new int [slaveNames.length];
+	 	      for (i=0; i< slaveNames.length; i++)
+	 	          {// initialize the arrays to zero
+	 	    	      counterMappers[i] = 0;
+	 	    	      counterReducers[i] = 0;
+	 	    	      selectedBW[i] = 0;
+	 	          }
 			  String infoIndices = ""; //indices of reducers for debugging
 			  String infoCounters = ""; //counter of reducers for debugging
 			  String infoSlavesIndices = ""; //Mapping indices of reducers for debugging
@@ -370,10 +377,51 @@ public class AcmMJSort extends Configured implements Tool{
 		    	if (reducerArrayHDFS == "")
 		    		 LOG.info("OR_Change-newPartitionerClass- No upload-1");
 			   }//while
-			  	     String [] reducerSlaves = reducerArrayHDFS.split("\\s+"); // array of reducer's slaves according to the their ID
-		    		 LOG.info("OR_Change-newPartitionerClass- Yes upload\nMappers: "+ mapperrArrayHDFS + "\nReducers: " + reducerArrayHDFS + "\nPartitionSize- " + bwNodeString + "\nslaveNames- " + NodeString);
-		 	        reducerIndicesPerSlave = new int [slavesBW.length][reducerSlaves.length];
-		 	     
+			  
+			         LOG.info("OR_Change-newPartitionerClass- Yes upload\nMappers: "+ mapperrArrayHDFS + "\nReducers: " + reducerArrayHDFS + "\nPartitionSize- " + bwNodeString + "\nslaveNames- " + NodeString);
+			         String [] testNumSlavesBW = bwNodeString.split("\\s+"); // array of slave's downlinks per slave
+			         if (testNumSlavesBW.length > slaveNames.length)
+			         {
+			        	 String [] mappersSlaves = mapperrArrayHDFS.split("\\s+"); // array of mapper's slaves according to the their ID
+			        	//count mappers to pick the right BW array
+			    		 String infoMappersBW = "";
+			    		 String infoMappersAmount = "";
+			    		 for (i=0; i< mappersSlaves.length; i++)
+			 	        	{
+			 	        	 for (j=0; j< slaveNames.length; j++)
+			 	        	 {
+			 	        		if (mappersSlaves[i].equals(slaveNames[j]))
+			 	        		{
+			 	        			counterMappers[j]++;
+				 	        		continue;
+			 	        		}//if
+			 	        	 }//for
+			 	        	}//for
+			    		
+			    		 for (i=0; i< slaveNames.length; i++)
+			 	        	{
+			    			 for (j=0; j< slaveNames.length; j++)
+				 	        	{
+			    			     String [] slaveBW = slavesBW[j].split("\\s+"); // array of slave's downlinks of slave 	        		 
+			 	        	     selectedBW[i] += (Integer.parseInt(slaveBW[i]) * counterMappers[i]);
+				 	        	}
+			    			 selectedBW[i] =  (selectedBW[i] /slaveNames.length);
+			    			 infoMappersAmount += String.valueOf(counterMappers[i]) + " ";
+			    			 infoMappersBW += String.valueOf(selectedBW[i]) + " ";
+			 	        	}
+			    		 LOG.info("OR_Change-newPartitionerClass-mappers\ninfoMappersAmount: "+ infoMappersAmount + "\ninfoMappersBW: " + infoMappersBW);
+			         }
+			         else
+			         {//average downlink
+			        	 for (i=0; i< slaveNames.length; i++)
+			 	        	{
+			        		  selectedBW[i] = Integer.parseInt(testNumSlavesBW[i]);
+			 	        	} 
+			         }
+			         
+			         String [] reducerSlaves = reducerArrayHDFS.split("\\s+"); // array of reducer's slaves according to the their ID
+		 	         reducerIndicesPerSlave = new int [slaveNames.length][reducerSlaves.length];
+		 	      //count reducers to pick the right allocation of data between slaves
 		 	         for (i=0; i< reducerSlaves.length; i++)
 		 	        	{
 		 	        	 for (j=0; j< slaveNames.length; j++)
@@ -387,13 +435,13 @@ public class AcmMJSort extends Configured implements Tool{
 		 	        	 }//for
 		 	        	}//for
 		 	         j = 0;
-		 	        for (i = 0; i < slavesBW.length; i++)
+		 	        for (i = 0; i < selectedBW.length; i++)
 		 	        {
 		 	        	if (counterReducers[i] > 0)
 		 	        	{
 				 	         /// add blacklist code
-		 	        		slaveSize[j] = Integer.parseInt(slavesBW[i]);
-		 	        		infoSlavesBW = infoSlavesBW + slavesBW[i] + ", ";
+		 	        		slaveSize[j] = selectedBW[i];
+		 	        		infoSlavesBW = infoSlavesBW + selectedBW[i] + ", ";
 		 	        		W += slaveSize[j];
 		 	        		reducersSlaveIndices[j] = i; 
 		 	        		j++;
@@ -401,7 +449,7 @@ public class AcmMJSort extends Configured implements Tool{
 		 	        	} //if
 		 	        }//for
 		 	        // just for debugging with LOG
-		 	        for (i=0; i<slavesBW.length; i++)
+		 	        for (i=0; i<selectedBW.length; i++)
 		 	        {
 		 	        	infoCounters = infoCounters + String.valueOf(counterReducers[i]) + ", ";
 		 	        	if (counterReducers[i] > 0)
@@ -426,10 +474,10 @@ public class AcmMJSort extends Configured implements Tool{
 	    {	
 	     int res = 0; //the default partition
 	  	 if (W == 0)
-	  		res = (key.hashCode() & Integer.MAX_VALUE) % numPartitions; // when W=0 we partition the tuples evenly
+	  		res = (key.getFirst().hashCode() & Integer.MAX_VALUE) % numPartitions; // when W=0 we partition the tuples evenly
 	  	 else
 	  	 {//when we have the new allocation
-	  		 int oldres = (key.hashCode() & Integer.MAX_VALUE) % W; // when W>0 we partition the tuples according to slaveSize
+	  		 int oldres = (key.getFirst().hashCode() & Integer.MAX_VALUE) % W; // when W>0 we partition the tuples according to slaveSize
 	  		 int slaveIndex = 0; // index of slave
 	     	 int partitionIndicator = slaveSize[slaveIndex];
 	       	 while (partitionIndicator == 0 || oldres >= partitionIndicator)// if PartitionSize[optPartit] is zero
@@ -439,21 +487,37 @@ public class AcmMJSort extends Configured implements Tool{
 	     	   }//while
 	       	 int realSlaveIndex = reducersSlaveIndices[slaveIndex];
 	      	// LOG.info("my key - " + key + ", oldres= " +  String.valueOf(oldres) + ", slaveIndex= " + String.valueOf(slaveIndex) + ", partitionIndicator= " + String.valueOf(partitionIndicator) + ", slave= " + String.valueOf(realSlaveIndex) );
-	         int toReducerIndex = (key.hashCode() & Integer.MAX_VALUE) % counterReducers[realSlaveIndex];
+	         int toReducerIndex = (key.getFirst().hashCode() & Integer.MAX_VALUE) % counterReducers[realSlaveIndex];
 	       	 res = reducerIndicesPerSlave[realSlaveIndex][toReducerIndex];
 	     //  LOG.info("Ultimate Test- key = " + key + ", oldres = " + oldres + ", slaveIndex = " + slaveIndex +  ", countReducerBySlave[slaveIndex] = " + countReducerBySlave[slaveIndex] + ", toReducerIndex = " + toReducerIndex + ", res = " + res );
 	     }//else
 	  	return res;
 	   }//fun getPartition
 	}//class newPartitionerClass
-	 
+
+	 public String getSplitSize (Configuration conf, String mappersNum, String file) throws IOException
+	  {
+		 String [] files = file.split("\\s+");
+		 int size = 0;
+		 for ( int i = 0; i < files.length; i++)
+		 {
+			 Path path = new Path("/user/hadoop2/" + files[i]);
+			 FileSystem hdfs = path.getFileSystem(conf);
+			 ContentSummary cSummary = hdfs.getContentSummary(path);
+			 size += (int) cSummary.getLength();
+		 }
+		 System.out.println("file size = " + String.valueOf(size) ); 
+		 //inputsplitSize
+		 return String.valueOf(size /Integer.parseInt(mappersNum) );
+	  }
 	@Override
     public int run (String[] args) throws Exception
-    {// input_1 input_2 input_3 output inputsplitSize S_Vector slave_names downlinkVec JobName rounds
+    {// input_1 input_2 input_3 output num_mappers S_Vector slave_names downlinkVec JobName rounds
 				Configuration conf = getConf();
+				String inputsplitSize = getSplitSize(conf, args[4], args[0]+ " " + args[1] + " " +  args[2]);
 				// # of mappers = size_input / split size [Bytes], split size=  max(mapreduce.input.fileinputformat.split.minsize, min(mapreduce.input.fileinputformat.split.maxsize, dfs.blocksize))
-				conf.set("mapreduce.input.fileinputformat.split.minsize", args[4]); 
-				conf.set("mapreduce.input.fileinputformat.split.maxsize", args[4]);
+				conf.set("mapreduce.input.fileinputformat.split.minsize", inputsplitSize); 
+				conf.set("mapreduce.input.fileinputformat.split.maxsize", inputsplitSize);
 			    conf.set("mapreduce.map.log.level", "DEBUG");
 			    //conf.set("mapreduce.task.profile", "true");
 			    //conf.set("mapreduce.task.profile.reduces", "0-5");
