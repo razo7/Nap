@@ -202,7 +202,7 @@ public class WordCountOR2 extends Configured implements Tool
 		 	        	     infoIndices = infoIndices + String.valueOf(reducerIndicesPerSlave[i][j]) + " ";
 		 	            		 	      
 		 	        }
-		   // 	 LOG.info("OR_Change-newPartitionerClass- W = " + W + ", slaves Size\n" + infoSlavesBW + "\nCounters\n" + infoCounters + "\nIndices:" + infoIndices +"\nreducersSlaveIndices:\n" + infoSlavesIndices );
+		    //	 LOG.info("OR_Change-newPartitionerClass- W = " + W + ", slaves Size\n" + infoSlavesBW + "\nCounters\n" + infoCounters + "\nIndices:" + infoIndices +"\nreducersSlaveIndices:\n" + infoSlavesIndices );
 		    }//setConf
 		    
 		    @Override
@@ -232,7 +232,7 @@ public class WordCountOR2 extends Configured implements Tool
 	      	// LOG.info("my key - " + key + ", oldres= " +  String.valueOf(oldres) + ", slaveIndex= " + String.valueOf(slaveIndex) + ", partitionIndicator= " + String.valueOf(partitionIndicator) + ", slave= " + String.valueOf(realSlaveIndex) );
 	         int toReducerIndex = (key.hashCode() & Integer.MAX_VALUE) % counterReducers[realSlaveIndex];
 	       	 res = reducerIndicesPerSlave[realSlaveIndex][toReducerIndex];
-	     //  LOG.info("Ultimate Test- key = " + key + ", oldres = " + oldres + ", slaveIndex = " + slaveIndex +  ", countReducerBySlave[slaveIndex] = " + countReducerBySlave[slaveIndex] + ", toReducerIndex = " + toReducerIndex + ", res = " + res );
+	    //   	LOG.info("Ultimate Test- key = " + key + ", oldres = " + oldres + ", slaveIndex = " + slaveIndex +  ", reducersSlaveIndices[slaveIndex] = " + reducersSlaveIndices[slaveIndex] + ", counterReducers[realSlaveIndex] = " + counterReducers[realSlaveIndex] + ", toReducerIndex = " + toReducerIndex + ", res = " + res );
 	     }//else
 	  	return res;
 	   }//fun getPartition
@@ -248,7 +248,18 @@ public class WordCountOR2 extends Configured implements Tool
 		 //inputsplitSize
 		 return String.valueOf(size /Integer.parseInt(mappersNum) );
 	  }
-	
+	 public void deleteContainersLoc (Configuration conf, String file) throws IOException
+	 {
+		    String [] files = file.split("\\s+");
+			FileSystem fs = FileSystem.get(URI.create("hdfs://master:9000"), conf);
+            for ( int i = 0; i < files.length; i++ )
+            {
+            	Path hdfsPath = new Path(files[i]);
+            	 if(fs.exists(hdfsPath))  // If files exists then delete         
+ 	            	 fs.delete(hdfsPath, true); 
+            }
+	 }
+
 	 public int run (String[] args) throws Exception
 	    {// input output num_mappers num_reducers slave_names downlinkVec JobName rounds
 			Configuration conf = getConf();
@@ -261,9 +272,9 @@ public class WordCountOR2 extends Configured implements Tool
 			conf.set("NodeString", args[4]); // pass the slave names
 			conf.set("bwNodeString", args[5]); // pass the downlink vector of partitions
 			System.setProperty("hadoop.home/dir", "/");
+			deleteContainersLoc(conf, "/mappersLocations /reducersLocations"); //clean old files
 			
 			int rounds = Integer.parseInt(args[7]);
-			//conf.set("r", args[3]); // pass the num_reducers to newPartitioner Class
 			long [] elaspeJobTimeArr = new long [rounds]; 
 			int totalTime = 0;			
 			for (int i=0; i< rounds; i++)
@@ -292,7 +303,7 @@ public class WordCountOR2 extends Configured implements Tool
 
 		FileInputFormat.addInputPath(job, new Path(args[0]));
 		FileOutputFormat.setOutputPath(job, new Path(new Path(args[1]), index));
-		System.out.println("Num reducers: " + args[3] + "\nSlaves list: " + args[4] + "\ndownLink: " + args[5]);
+		System.out.println("Num reducers: " + args[3] + "\nSlaves list: " + args[4] + "\nDownLink: " + args[5]);
 		long start1 = new Date().getTime();
 		if (!job.waitForCompletion(true))
 			System.exit(1);

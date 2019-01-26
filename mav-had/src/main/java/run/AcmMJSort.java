@@ -21,14 +21,12 @@ import org.apache.hadoop.fs.ContentSummary;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Partitioner;
 import org.apache.hadoop.mapreduce.Reducer;
-import org.apache.hadoop.mapreduce.Reducer.Context;
 import org.apache.hadoop.mapreduce.lib.input.MultipleInputs;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
@@ -36,7 +34,9 @@ import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
-import run.WordCountOR2.newPartitionerClass;
+
+
+
 import examples.TextPair;
 
 public class AcmMJSort extends Configured implements Tool{
@@ -330,10 +330,12 @@ public class AcmMJSort extends Configured implements Tool{
 		  private static int [] counterReducers; // counter of reducers per slave
 		  private static int [] reducersSlaveIndices; // mapping from all the slaves to working slaves in reduce
 	      private static int W = 0 ; //sum of downlinks (slaveSize)
+	      private static int ANum; // uniform dist of 2 tables
 		  private static final Log LOG = LogFactory.getLog(newPartitionerClass.class);
 	  @Override
 		    public void setConf (Configuration conf)
 		    {
+		      ANum = Integer.parseInt(conf.get("ANum"));//Article_id
 			  int i,j;
 		      String mapperrArrayHDFS = "";//mappersLocationString
 		      String reducerArrayHDFS = "";//reducersLocationString
@@ -459,7 +461,7 @@ public class AcmMJSort extends Configured implements Tool{
 		 	        	     infoIndices = infoIndices + String.valueOf(reducerIndicesPerSlave[i][j]) + " ";
 		 	            		 	      
 		 	        }
-		   // 	 LOG.info("OR_Change-newPartitionerClass- W = " + W + ", slaves Size\n" + infoSlavesBW + "\nCounters\n" + infoCounters + "\nIndices:" + infoIndices +"\nreducersSlaveIndices:\n" + infoSlavesIndices );
+		    //	 LOG.info("OR_Change-newPartitionerClass- \nW = " + W + "\nslaves Size: " + infoSlavesBW + "\nCounters" + infoCounters + "\nIndices:" + infoIndices +"\nreducersSlaveIndices:" + infoSlavesIndices );
 		    }//setConf
 		    
 		    @Override
@@ -467,17 +469,32 @@ public class AcmMJSort extends Configured implements Tool{
 		    {
 		    	return null;
 		    }
-		
+		public int newHash (TextPair tp )
+		{
+			String s = tp.getFirst().toString();
+			long hash = 7;
+			for ( int i = 0; i < s.length(); i++)
+				hash = hash *33 + (int) s.charAt(i)*5;			
+			return (int) hash & Integer.MAX_VALUE;
+		}
+		 public static int MJHashEqual (TextPair key)
+		 {
+			 String mykey = key.getFirst().toString();
+			 return Character.getNumericValue(mykey.charAt(0)) * ANum + Character.getNumericValue(mykey.charAt(1)); 
+			 
+		 }//MJHashEqual
 		  //important for partitioning tuples with the same reducer ID to the same destination(partition)
 	    @Override
 	    public int getPartition(TextPair key, Text value, int numPartitions)
 	    {	
 	     int res = 0; //the default partition
 	  	 if (W == 0)
-	  		res = (key.getFirst().hashCode() & Integer.MAX_VALUE) % numPartitions; // when W=0 we partition the tuples evenly
+	  		//res = (key.getFirst().hashCode() & Integer.MAX_VALUE) % numPartitions; // when W=0 we partition the tuples evenly
+	  	    res = MJHashEqual(key) % numPartitions; // when W=0 we partition the tuples evenly
 	  	 else
 	  	 {//when we have the new allocation
-	  		 int oldres = (key.getFirst().hashCode() & Integer.MAX_VALUE) % W; // when W>0 we partition the tuples according to slaveSize
+	  		 //int oldres = (key.getFirst().hashCode() & Integer.MAX_VALUE) % W; // when W>0 we partition the tuples according to slaveSize
+	  		 int oldres = MJHashEqual(key) % W; // when W>0 we partition the tuples according to slaveSize
 	  		 int slaveIndex = 0; // index of slave
 	     	 int partitionIndicator = slaveSize[slaveIndex];
 	       	 while (partitionIndicator == 0 || oldres >= partitionIndicator)// if PartitionSize[optPartit] is zero
@@ -487,9 +504,10 @@ public class AcmMJSort extends Configured implements Tool{
 	     	   }//while
 	       	 int realSlaveIndex = reducersSlaveIndices[slaveIndex];
 	      	// LOG.info("my key - " + key + ", oldres= " +  String.valueOf(oldres) + ", slaveIndex= " + String.valueOf(slaveIndex) + ", partitionIndicator= " + String.valueOf(partitionIndicator) + ", slave= " + String.valueOf(realSlaveIndex) );
-	         int toReducerIndex = (key.getFirst().hashCode() & Integer.MAX_VALUE) % counterReducers[realSlaveIndex];
+	       	 //int toReducerIndex = (key.getFirst().hashCode() & Integer.MAX_VALUE) % counterReducers[realSlaveIndex];
+	       	 int toReducerIndex = MJHashEqual(key) % counterReducers[realSlaveIndex];
 	       	 res = reducerIndicesPerSlave[realSlaveIndex][toReducerIndex];
-	     //  LOG.info("Ultimate Test- key = " + key + ", oldres = " + oldres + ", slaveIndex = " + slaveIndex +  ", countReducerBySlave[slaveIndex] = " + countReducerBySlave[slaveIndex] + ", toReducerIndex = " + toReducerIndex + ", res = " + res );
+	      //   LOG.info("Ultimate Test- key = " + key + ", oldres = " + oldres + ", slaveIndex = " + slaveIndex +  ", reducersSlaveIndices[slaveIndex] = " + reducersSlaveIndices[slaveIndex] + ", counterReducers[realSlaveIndex] = " + counterReducers[realSlaveIndex] + ", toReducerIndex = " + toReducerIndex + ", res = " + res );
 	     }//else
 	  	return res;
 	   }//fun getPartition
@@ -510,6 +528,17 @@ public class AcmMJSort extends Configured implements Tool{
 		 //inputsplitSize
 		 return String.valueOf(size /Integer.parseInt(mappersNum) );
 	  }
+	 public void deleteContainersLoc (Configuration conf, String file) throws IOException
+	 {
+		    String [] files = file.split("\\s+");
+			FileSystem fs = FileSystem.get(URI.create("hdfs://master:9000"), conf);
+            for ( int i = 0; i < files.length; i++ )
+            {
+            	Path hdfsPath = new Path(files[i]);
+            	 if(fs.exists(hdfsPath))  // If files exists then delete         
+ 	            	 fs.delete(hdfsPath, true); 
+            }
+	 }
 	@Override
     public int run (String[] args) throws Exception
     {// input_1 input_2 input_3 output num_mappers S_Vector slave_names downlinkVec JobName rounds
@@ -519,8 +548,6 @@ public class AcmMJSort extends Configured implements Tool{
 				conf.set("mapreduce.input.fileinputformat.split.minsize", inputsplitSize); 
 				conf.set("mapreduce.input.fileinputformat.split.maxsize", inputsplitSize);
 			    conf.set("mapreduce.map.log.level", "DEBUG");
-			    //conf.set("mapreduce.task.profile", "true");
-			    //conf.set("mapreduce.task.profile.reduces", "0-5");
 			    conf.set("mapreduce.task.timeout", "900000"); //15 minutes wait for before killing the task
 			    conf.set("NodeString", args[6]); // pass the slave names
 			    conf.set("bwNodeString", args[7]); // pass the downlink vector of partitions
@@ -528,9 +555,10 @@ public class AcmMJSort extends Configured implements Tool{
 				conf.set("ANum", splitInput[0]); // pass the table size -Article_id
 				conf.set("BNum", splitInput[1]); // pass the table size -Person_id
 				System.setProperty("hadoop.home/dir", "/");
+				deleteContainersLoc(conf, "/mappersLocations /reducersLocations"); //clean old files
 				int num_reducers = Integer.parseInt(splitInput[0]) * Integer.parseInt(splitInput[1]);
+				
 				int rounds = Integer.parseInt(args[9]);
-				conf.set("r", String.valueOf(num_reducers)); // pass the num_reducers to newPartitioner Class
 				long [] elaspeJobTimeArr = new long [rounds]; 
 				int totalTime = 0;			
 				for (int i=0; i< rounds; i++)
@@ -568,7 +596,7 @@ public class AcmMJSort extends Configured implements Tool{
 		MultipleInputs.addInputPath(job, new Path(args[1]), TextInputFormat.class, YMapper.class);
 		MultipleInputs.addInputPath(job, new Path(args[2]), TextInputFormat.class, ZMapper.class);
 		FileOutputFormat.setOutputPath(job, new Path(new Path(args[3]),index));
-		System.out.println("Num reducers: " + String.valueOf(num_reducers) + "\nSlaves list: " + args[6] + "\nDownlinks list: " + args[7]);		
+		System.out.println("Num reducers: " + String.valueOf(num_reducers) + "\nSlaves list: " + args[6] + "\nDownlink: " + args[7]);		
 		long start1 = new Date().getTime();
 	    if (!job.waitForCompletion(true))
 	    	System.exit(1);  

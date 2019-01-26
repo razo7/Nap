@@ -98,8 +98,9 @@ public class tt2
     {
 		String text = "P329143	BJ\\_amp\\_#248;rn	Myhrhaug";
 		String[] splitInput = text.split("\\t");
-
-
+		Configuration conf = new Configuration();
+		deleteContainersLoc(conf, "/mappersLocations /reducersLocations");
+		
 		System.out.println(splitInput[0] +" WOW " + splitInput[1] +" WOW " + splitInput[2] );
 		/*splitInput[2
 		List<Integer> downlinks_list = new ArrayList<>();
@@ -121,5 +122,17 @@ public class tt2
 	      fs.close();//close opend Hadoop File System
 	      */
     }
-
+	 public static void deleteContainersLoc (Configuration conf, String file) throws IOException
+	 {
+		    String [] files = file.split("\\s+");
+		    System.out.println(String.valueOf(files.length));
+			FileSystem fs = FileSystem.get(URI.create("hdfs://master:9000"), conf);
+            for ( int i = 0; i < files.length; i++ )
+            {
+            	System.out.println(String.valueOf(i) + "," + files[i]);
+            	Path hdfsPath = new Path(files[i]);
+            	 if(fs.exists(hdfsPath))  // If files exists then delete         
+ 	            	 fs.delete(hdfsPath, true); 
+            }
+	 }
 }

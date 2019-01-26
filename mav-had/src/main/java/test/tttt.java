@@ -5,16 +5,36 @@ import java.util.List;
 import java.util.Random;
 
 import org.apache.hadoop.io.Text;
+
+import examples.TextPair;
 public class tttt {
 private final static Random rand = new Random();
+public static int newHash (String s )
+{
+	long hash = 1;
+	for ( int i = 0; i < s.length(); i++)
+		hash = hash *33 + (int) s.charAt(i)*131;			
+	return (int) hash & Integer.MAX_VALUE;
+}
+public static int MJHashEqual (String mykey, int ANum)
+{
+	 return Character.getNumericValue(mykey.charAt(0)) * ANum + Character.getNumericValue(mykey.charAt(1)); 
+	 
+}//MJHashEqual
 	public static void main(String[] args){
 		// TODO Auto-generated method stub
 		String a = "0";
 		String b = "1";
 		String res = a+b;
 		//System.out.println(("0"+"0").hashCode() + " " + ("0"+"1").hashCode() + " " + ("1"+"0").hashCode() + " " + ("1"+"1").hashCode() );
-		int A=5;
-		int B=5;
+		int res1,res2,res4, A=3;
+		int B=3;
+		int size = A *B;
+		int arr1 [] = new int[size];
+		int arr2 [] = new int[size];
+		int arr4 [] = new int[size];
+		for (int i =0 ; i < size; i++)
+			arr1 [i] = arr2[i] = arr4 [i]= 0;
 		for (int i=0; i< A; i++)
 		{
 			String a1 = String.valueOf(i);
@@ -22,8 +42,27 @@ private final static Random rand = new Random();
 			{
 				String b1 = String.valueOf(j);
                 String res3 = a1+b1;
-				//System.out.println(res3 +": "+ res3.hashCode()  );
+                res1 = res3.hashCode() % size;
+                res2 = newHash(res3) % size;
+                res4 = MJHashEqual(res3,A) % size;
+                arr1[res1]++;
+                arr2[res2]++;
+                arr4[res4]++;
+                System.out.println(String.valueOf(res3));
+        		System.out.print("hashcode- "+ " : "+ String.valueOf(res1) );
+                System.out.print(", newHash- " + ": "+ String.valueOf(res2)  );
+                System.out.print(", MJHashEqual- "+": "+ String.valueOf(res4) +"\n" );
 			}}
+		System.out.println("");
+		for (int i =0 ; i < size; i++)
+			System.out.print(arr1 [i]);
+		System.out.println("");
+		for (int i =0 ; i < size; i++)
+			System.out.print(arr2 [i]);
+		System.out.println("");	
+		for (int i =0 ; i < size; i++)
+			System.out.print(arr4 [i]);
+		System.out.println("");	
 		//System.out.println(closeNum(19));
 		int r = 5;
 		int W = 7;
@@ -94,4 +133,5 @@ private final static Random rand = new Random();
 		return cand;
 		
 	}
+	
 }
