@@ -541,7 +541,7 @@ public class AcmMJSort extends Configured implements Tool{
 	 }
 	@Override
     public int run (String[] args) throws Exception
-    {// input_1 input_2 input_3 output num_mappers S_Vector slave_names downlinkVec JobName rounds
+    {// input_1 input_2 input_3 output num_mappers num_reducers S_Vector slave_names downlinkVec JobName rounds
 				Configuration conf = getConf();
 				String inputsplitSize = getSplitSize(conf, args[4], args[0]+ " " + args[1] + " " +  args[2]);
 				// # of mappers = size_input / split size [Bytes], split size=  max(mapreduce.input.fileinputformat.split.minsize, min(mapreduce.input.fileinputformat.split.maxsize, dfs.blocksize))
@@ -549,16 +549,17 @@ public class AcmMJSort extends Configured implements Tool{
 				conf.set("mapreduce.input.fileinputformat.split.maxsize", inputsplitSize);
 			    conf.set("mapreduce.map.log.level", "DEBUG");
 			    conf.set("mapreduce.task.timeout", "900000"); //15 minutes wait for before killing the task
-			    conf.set("NodeString", args[6]); // pass the slave names
-			    conf.set("bwNodeString", args[7]); // pass the downlink vector of partitions
-			    String [] splitInput = args[5].split("\\s+");
+			    conf.set("NodeString", args[7]); // pass the slave names
+			    conf.set("bwNodeString", args[8]); // pass the downlink vector of partitions
+			    String [] splitInput = args[6].split("\\s+");
 				conf.set("ANum", splitInput[0]); // pass the table size -Article_id
 				conf.set("BNum", splitInput[1]); // pass the table size -Person_id
 				System.setProperty("hadoop.home/dir", "/");
 				deleteContainersLoc(conf, "/mappersLocations /reducersLocations"); //clean old files
-				int num_reducers = Integer.parseInt(splitInput[0]) * Integer.parseInt(splitInput[1]);
+				int num_reducers = Integer.parseInt(args[5]);
+				//int num_reducers = Integer.parseInt(splitInput[0]) * Integer.parseInt(splitInput[1]);
 				
-				int rounds = Integer.parseInt(args[9]);
+				int rounds = Integer.parseInt(args[10]);
 				long [] elaspeJobTimeArr = new long [rounds]; 
 				int totalTime = 0;			
 				for (int i=0; i< rounds; i++)
@@ -577,7 +578,7 @@ public class AcmMJSort extends Configured implements Tool{
 	
 	public static long myRunJob (Configuration conf, String [] args, int num_reducers, String index) throws ClassNotFoundException, IOException, InterruptedException
 	{
-		Job job = Job.getInstance(conf, args[8]);
+		Job job = Job.getInstance(conf, args[9]);
 		job.setJarByClass(AcmMJSort.class);
 		job.setPartitionerClass(newPartitionerClass.class); 
 		job.setGroupingComparatorClass(TextPair.FirstComparator.class); 
@@ -596,7 +597,7 @@ public class AcmMJSort extends Configured implements Tool{
 		MultipleInputs.addInputPath(job, new Path(args[1]), TextInputFormat.class, YMapper.class);
 		MultipleInputs.addInputPath(job, new Path(args[2]), TextInputFormat.class, ZMapper.class);
 		FileOutputFormat.setOutputPath(job, new Path(new Path(args[3]),index));
-		System.out.println("Num reducers: " + String.valueOf(num_reducers) + "\nSlaves list: " + args[6] + "\nDownlink: " + args[7]);		
+		System.out.println("Num reducers: " +  args[5] + "\nSlaves list: " + args[7] + "\nDownlink: " + args[8]);		
 		long start1 = new Date().getTime();
 	    if (!job.waitForCompletion(true))
 	    	System.exit(1);  
