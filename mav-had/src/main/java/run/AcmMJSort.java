@@ -5,6 +5,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -33,6 +34,7 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
+
 
 
 
@@ -145,36 +147,61 @@ public class AcmMJSort extends Configured implements Tool{
 			int index = 0;
 			int save_index = 0;
 			int matchKey = 0;
+			int c1 = 0; 
+			int c2 = 0; 
+			int c3 = 0;
 			String last_key = "";
 		    boolean startZ = true;
-			
+		    long start = new Date().getTime();
 			if (key.getSecond().toString().charAt(0) != 'X')
 			{//if there is not a X row, then we can't perform a multiway join
-				//				LOG.info("Logging reducer first value is not from X! " + key.getFirst() +" value: " + key.getSecond());
+//				LOG.info("Logging reducer first value is not from X! " + key.getFirst() +" value: " + key.getSecond());
 				return ;
 			}
-			
+			start = new Date().getTime();
+/*			for (Text val :values ) 
+			{
+				String tempKey = key.getSecond().toString();
+				char table = tempKey.charAt(0);
+				if (table == 'X') 
+					c1++;
+				if (table == 'Y')
+					c2++;
+				if (table == 'Z')
+					c3++;
+			}
+			LOG.info("Time for counting three tables: " + String.valueOf(new Date().getTime() -start)
+					+ "\nc1= " + String.valueOf(c1) + ",c2= " + String.valueOf(c2) + ",c3= " + String.valueOf(c3));
+*/
+			long startPhase = new Date().getTime();
+		    boolean startY = true;
+			start = new Date().getTime();
 			for (Text val :values ) 
 			{
 				String tempKey = key.getSecond().toString();
 				char table = tempKey.charAt(0);
 				String keyJoin = tempKey.substring(1, tempKey.length());
 				if (table == 'X') 
-				{//article
-					
-						RelX.add(new Text(keyJoin + "," + val));
+				{//article		
+					RelX.add(new Text(keyJoin + "," + val));
+					c1++;
 				}// if- article
 				else if (table == 'Y')
-			{//article_author
-					
+			     {//article_author		
+					c2++;
+					if (startY)
+					{
+						LOG.info("Time for phase X: " + String.valueOf(new Date().getTime() -startPhase));
+						startPhase = new Date().getTime();
+						startY = false;
+					}
 					if (matchKey > 0 && !last_key.equalsIgnoreCase(keyJoin) )
 						RelX = RelX.subList(save_index + matchKey, RelX.size());
 					matchKey = 0;
 					index = 0;
 					save_index = 0;	
 					for (Text x : RelX) 
-				
-					{//article
+					  {//article
 						last_key = keyJoin;
 						String[] Xtemp = x.toString().split(",");
 //						LOG.info("Logging loop reducer  Y: " + keyJoin + " "  + val + " X: " + Xtemp[0] + "," + Xtemp[1] + " matchKey- " + matchKey);
@@ -188,15 +215,20 @@ public class AcmMJSort extends Configured implements Tool{
 						else if (matchKey > 0)
 							break;
 						index++;
-					}// for	
-			}// if- article_author
+					  }// for	
+			      }// if- article_author
 				else 
 				{//persons
-					
+					c3++;
 						if (startZ)
 						{//sort
+							LOG.info("Time for phase Y: " + String.valueOf(new Date().getTime() -startPhase));
+							startPhase = new Date().getTime();
 						/*	 LOG.info("Before sortedArray! "  + key.getFirst() + " with size: " + RelX_Y.size() ); for (TextPair x_y : RelX_Y) LOG.info("x_y: " + x_y); */
 							Collections.sort(Rel_mid);
+							
+							LOG.info("Time for sorting XY: " + String.valueOf(new Date().getTime() -startPhase) +" with size " + String.valueOf(Rel_mid.size()));
+							startPhase = new Date().getTime();
 							startZ = false;
 //							LOG.info("sortedArray! "  + key.getFirst() + " with size: " + Rel_mid.size() ); 
 //							for (Text mid : Rel_mid) LOG.info("mid: " + mid);
@@ -224,10 +256,80 @@ public class AcmMJSort extends Configured implements Tool{
 							index++;
 						}// for	
 				}//else- persons
-			}// for			
+			}// for	
+			LOG.info("Time for phase Z: " + String.valueOf(new Date().getTime() -startPhase));
+			LOG.info("Total time for key " + key + ": " + String.valueOf(new Date().getTime() -start));
 			LOG.info("Logging reducer : " +key);
 		}// reduce
 	}// IndexReduceOneLoop Class
+
+	public static class HashReduceOneLoop  extends Reducer<TextPair, Text, Text, Text> 
+	{
+		private static final Log LOG = LogFactory.getLog(HashReduceOneLoop .class);
+	
+		@Override
+		public void reduce(TextPair key, Iterable<Text> values, Context context) throws IOException, InterruptedException 
+		{
+			HashMap<String, String> mapX = new HashMap<String, String>();
+			HashMap<String, String> mapXY = new HashMap<String, String>();
+			String[] XYtemp = null;
+			String[] Xtemp = null;  
+			String valX = "",valXY = "";
+			if (key.getSecond().toString().charAt(0) != 'X')
+			{//if there is not a X row, then we can't perform a multiway join
+				return ;
+			}
+			for (Text val :values ) 
+			{
+				String tempKey = key.getSecond().toString();
+				char table = tempKey.charAt(0);
+				String keyJoin = tempKey.substring(1, tempKey.length());
+				if (table == 'X') 
+				{//article	
+					if (mapX.containsKey(keyJoin))
+					{
+						valX = mapX.get(keyJoin);
+						mapX.remove(keyJoin);//remove, won't make a duplicate key!
+						mapX.put(keyJoin, valX + "," + val.toString());
+					}
+					else
+						mapX.put(keyJoin, val.toString());
+				}// if- article
+				else if (table == 'Y')
+			     {//article_author		
+					if (mapX.containsKey(keyJoin))
+					{
+						valX = mapX.get(keyJoin);
+						Xtemp = valX.toString().split(",");
+						for ( int i = 0; i <Xtemp.length; i++)
+							{//go over all possiblites
+								if (mapXY.containsKey(val.toString()))
+								 {
+									valXY = mapXY.get(val.toString());
+									mapXY.remove(val.toString());//remove, won't make a duplicate key!
+									mapXY.put(val.toString(),keyJoin + " " + valXY + ":" + Xtemp[i] );
+								 }//if
+								else
+									mapXY.put(val.toString(),keyJoin + " " + Xtemp[i] );
+							}//for
+					}//if	
+			      }// if- article_author
+				else 
+				{//persons
+					if (mapXY.containsKey(keyJoin))
+					{
+						valXY = mapXY.get(keyJoin);
+						XYtemp = valXY.toString().split(":");
+						for ( int i = 0; i <XYtemp.length; i++)
+						{//go over all possiblites						
+							context.write(key.getFirst(), new Text(keyJoin + " " + val + " " + XYtemp[i]));
+						}
+					}	
+				}//else- persons
+			}// for	
+			LOG.info("HashReduceOneLoop - Logging reducer : " + key);
+		}// reduce
+	}// HashReduceOneLoop Class
 
 	public static class SQLReduce extends 	Reducer<TextPair, Text, Text, Text> 
 	{
@@ -513,7 +615,7 @@ public class AcmMJSort extends Configured implements Tool{
 	   }//fun getPartition
 	}//class newPartitionerClass
 
-	 public String getSplitSize (Configuration conf, String mappersNum, String file) throws IOException
+	public String getSplitSize (Configuration conf, String mappersNum, String file) throws IOException
 	  {
 		 String [] files = file.split("\\s+");
 		 int size = 0;
@@ -528,7 +630,8 @@ public class AcmMJSort extends Configured implements Tool{
 		 //inputsplitSize
 		 return String.valueOf(size /Integer.parseInt(mappersNum) );
 	  }
-	 public void deleteContainersLoc (Configuration conf, String file) throws IOException
+
+	public void deleteContainersLoc (Configuration conf, String file) throws IOException
 	 {
 		    String [] files = file.split("\\s+");
 			FileSystem fs = FileSystem.get(URI.create("hdfs://master:9000"), conf);
@@ -539,8 +642,9 @@ public class AcmMJSort extends Configured implements Tool{
  	            	 fs.delete(hdfsPath, true); 
             }
 	 }
+	
 	@Override
-    public int run (String[] args) throws Exception
+	public int run (String[] args) throws Exception
     {// input_1 input_2 input_3 output num_mappers num_reducers S_Vector slave_names downlinkVec JobName rounds
 				Configuration conf = getConf();
 				String inputsplitSize = getSplitSize(conf, args[4], args[0]+ " " + args[1] + " " +  args[2]);
@@ -582,7 +686,8 @@ public class AcmMJSort extends Configured implements Tool{
 		job.setJarByClass(AcmMJSort.class);
 		job.setPartitionerClass(newPartitionerClass.class); 
 		job.setGroupingComparatorClass(TextPair.FirstComparator.class); 
-		job.setReducerClass(IndexReduceOneLoop.class);
+		job.setReducerClass(HashReduceOneLoop.class);
+//		job.setReducerClass(IndexReduceOneLoop.class);
 		//job.setReducerClass(SQLReduce.class);
 		
 		job.setInputFormatClass(TextInputFormat.class); // needed?

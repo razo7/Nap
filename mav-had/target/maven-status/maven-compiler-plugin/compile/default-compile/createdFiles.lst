@@ -36,9 +36,11 @@ oldFiles/MJPair$Comparator.class
 oldFiles/OneWayReg$Reduce.class
 oldFiles/MJQuadruple.class
 run/AcmMJ$SQLReduce.class
+run/AcmMJSort$HashReduceOneLoop.class
 oldFiles/wcWithChange$newPartitionerClass.class
 oldFiles/Cascade$J2Reducer.class
 oldFiles/WordCountNew1$wcReducer.class
+test/gootTest.class
 test/tt2.class
 run/AcmMJSort$IndexReduceOneLoop.class
 examples/MaxTemperature.class
