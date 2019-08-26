@@ -1,11 +1,11 @@
 #!/bin/bash
-# dd3.sh
+# testSummary.sh
 # Author: Or Raz
 #
 # Topology - {East- (1,2), West- 3, London- (4,5)}
 if [[ $# -eq 1 ]] ; then
 	echo 'some message'
-	`bash dd1.sh slave1 slave2 slave3 slave4 slave5`
+	`bash testClusterD.sh slave1 slave2 slave3 slave4 slave5`
 fi
 avg_file="downLink.txt"
 #while IFS=" " read -r var1 var2 var3 var4 var5; do

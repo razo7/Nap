@@ -1,5 +1,5 @@
 #!/bin/bash
-# dd2.sh
+# testNodeD.sh
 # Author: Or Raz
 #
 slaveFile="slaveFile-file"

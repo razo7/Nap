@@ -1,6 +1,7 @@
 #!/bin/bash
-# dd1.sh
+# testClusterD.sh
 # Author: Or Raz
+calc(){ awk "BEGIN { print "$*" }"; }
 splitSlaveArrayByIndex (){
 	if [ "$i" = 1 ]; then
 		        updateList=("${ssh_PCs[@]:i}")
@@ -13,9 +14,11 @@ splitSlaveArrayByIndex (){
 normalizeArray (){
 	sortedColNums=( $( printf "%s\n" "${downlink_PCs[@]}" | sort -n ) )
 	min=${sortedColNums[0]}
+	normalizedMin=$(calc $min/10)
 	normalizedArray=()
 	for dLink in ${downlink_PCs[@]} ; do # upload test & slaveFile
-		normalizedArray+=("$((dLink/min))")
+#		normalizedArray+=("$((dLink/normalizedMin))")
+		normalizedArray+=($(calc $dLink/$normalizedMin))
 	done
 }
 test_size="50" # Test file size in MBs
@@ -40,7 +43,7 @@ for ssh_PC in ${ssh_PCs[@]} ; do # upload test & slaveFile
 	echo "Upload test file and Dlink-Test to $ssh_PC..."
 	`scp $test_file $ssh_PC:$test_file`
 	`scp $AVGFile $ssh_PC:$AVGFile`
-	downVec_ISP_PCs+=(`ssh $ssh_PC ./AMJ/bwTest/speedtest-cli 2>&1 | \
+	downVec_ISP_PCs+=(`ssh $ssh_PC ./Nap/DownUp_SpeedTest/speedtest-cli 2>&1 | \
                   grep "Download:" | \
                   sed "s/^[^0-9]*\([0-9.]*\)[^0-9]*\([0-9.]*\).*$/\1/g"`)
 done
