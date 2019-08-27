@@ -4,29 +4,25 @@ Nap: Network-Aware Data Partitions for Efficient Distributed Processing
 Data partition _modification_ which considers the _network_ (nodes' downlinks) for a shorter mutliway join in _Hadoop_.
 
 ## Table of Contents
-* [Introduction](#Introduction)
-* [Features](#Features)
+* [Introduction](#introduction)
+* [Features](#features)
 * [Technologies](#technologies)
-* [Usage](#Usage)
-   * [Runing Job With and Without Network Awareness](#Running-Job-With-and-Without-Network-Awareness)  
-   * [Runing Hadoop Multi Node Cluster? Step by Step](#How-to-Run-Hadoop-Multi-Node-Cluster?-Step-by-Step)
-     * [Commands Before Running Daemons](#Commands-Before-Running-Daemons)
-     * [Setting Cluster Configuration Files](#Setting-Cluster-Configuration-Files)
-     * [Commands for Running Daemons](#Commands-for-Running-Daemons) 
-   * [How to Test Cluster Links?](#How-to-Test-Cluster-Links?)
-   * [How to Collect the Job's Parameters and Make Figures?](#How-to-Collect-the-Job's-Parameters-and-Make-Figures?)
-* [Documentation](#Documentation)
-   * [Job Modification and Partitioner Class (Java)](#Job-Modification-and-Partitioner-Class-(Java))
-     * [Job Modification](#Job-Modification)
-     * [Partitioner Class](#Partitioner-Class)
-   * [How to Run Wonder Shaper?](#How-to-Run-Wonder-Shaper?)
-   * [How to Access Daemons URIs?](#How_to_Access_Daemons_URIs?)
-* [Sources](#Sources)
-* [Contact](#Contact)
-
-<!---
-* 
--->
+* [Usage](#usage)
+   * [Running Job With and Without Network Awareness](#running-job-with-and-without-network-awareness)  
+   * [Running Hadoop Multi Node Cluster? Step by Step](#running-hadoop-multi-node-cluster-step-by-step)
+     * [Commands Before Running Daemons](#commands-before-running-daemons)
+     * [Setting Cluster Configuration Files](#setting-cluster-configuration-files)
+     * [Commands for Running Daemons](#commands-for-running-daemons) 
+   * [How to Test Cluster Links?](#how-to-test-cluster-links)
+   * [How to Collect the Job's Parameters and Make Figures?](#how-to-collect-the-jobs-parameters-and-make-figures)
+* [Documentation](#documentation)
+   * [Job Modification and Partitioner Class (Java)](#job-modification-and-partitioner-class-java)
+     * [Job Modification](#job-modification)
+     * [Partitioner Class](#partitioner-class)
+   * [How to Run Wonder Shaper?](#how-to-run-wonder-shaper)
+   * [How to Access Daemons URIs?](#how-to-access-daemons-uris)
+* [Sources](#sources)
+* [Contact](#contact)
 
 ## Introduction
 It is well known that in many Distributed Processing the __network__ influnce graetly the task finish time, and it could even be the _bottleneck_ of the task or the larger job.
@@ -37,15 +33,21 @@ The following file includes all the needed information for using the code and re
 ## Features
 This repository includes:
 + DownUp_SpeedTest 
-   + `downlinkSpeed-test.sh` or `scp-speed-test.sh` or `speedtest-cli` - Testing downlink and uplink between nodes 
-+ hadoop - An Hadoop 2.9.1 network aware compiled version (without the source code), the output from compiling project [@Nap-Hadoop-2.9.1](https://github.com/razo7/Nap-Hadoop-2.9.1).
+   + `downlinkSpeed-test.sh` or `scp-speed-test.sh` or `speedtest-cli` - Testing downlink and uplink between nodes (see [How to Test Cluster Links?](#how-to-test-cluster-links))
++ hadoop - An Hadoop 2.9.1 network aware compiled version (without the source code), the output from compiling project [see @Nap-Hadoop-2.9.1](https://github.com/razo7/Nap-Hadoop-2.9.1).
 + Input- txt files for WordCount example or three tables join, multiway join.
-+ mav-had - Maven Eclipse folder with POM file and relavent code under `Nap\mav-had\src\main\java`
-+ jobHistory - 
++ mav-had - Maven Eclipse folder with POM file and relavent code under `Nap\mav-had\src\main\java\run` (see [Job Modification and Partitioner Class (Java)](#job-modification-and-partitioner-class-java))
+  + `AcmMJ.java` - Old implematation of the multiway join (without secondary sort)
+  + `AcmMJSort.java` - Current implematation of the multiway join (with secondary sort), __use this one__.
+  + `Nap.java` - Alogrithm _Nap_ from the paper in Java (it also normalize the links).
+  + `WordCountOR.java` - Old wordcount example.
+  + `WordCountOR2.java` - Current wordcount example, __use this one__.
+  + Other Java files under `Nap\mav-had\src\main\java` are old examples.
++ job History (see [Job History](#how-to-collect-the-jobs-parameters-and-make-figures))- 
    + python code for parsing with REST API the job history server `downJobHistory.py`.
    + .xlsx files with the counters infromation of the jobs.
    + Wolfram Mathematica code `HadoopJobStatistics3.nb` and .xlsx files  for making figures.
-   + An example of the counters for job_1544370435610_006 from the JobHistory using REST API (see the URL) `JobHistory Counters Example.PNG`
+   + An example of the counters for job_1544370435610_006 from the Job History using REST API (see the URL) `JobHistory Counters Example.PNG`
 + .gitattributes - git lfs file
 + ec2-proj2.pem - RSA key for EC2 
 + LICENSE - Apache License 2.0 
@@ -61,21 +63,23 @@ This repository includes:
 
 ## Usage
 
-### Runing Job With and Without Network Awareness
+### Running Job With and Without Network Awareness
 We present results for ten runs of Hadoop jobs with two different partitions, 
 non-adaptive (uniformly) and adaptive (%non uniformly
 non-uniform, $\partit =(7,~6,~6)$), with $1.6$ GB shuffled data.
 1. Multiway join (Java code) example of three tables, Papers, Papers-Authors, and Authors.
-   + Add three tables
+   + Add three tables 
 ```
 hdfs dfs -put ~/Nap/input/TextFile_MultiwayJoin/x_article.txt /user/hadoop2/input/x
 hdfs dfs -put ~/Nap/input/TextFile_MultiwayJoin/y_article_author.txt /user/hadoop2/input/y
 hdfs dfs -put ~/Nap/input/TextFile_MultiwayJoin/z_persons.txt /user/hadoop2/input/z
 ```
-
-   + Run Multiway Join With _Network Awareness_- Example for running the job on a cluser of master, slave1, slave3, and slave5 nodes with a 7, 6, and 6 respected downlink rates. There are also three reducers and 24 mappers, s1=s2=10 (shared variables for the join), the job name is _oneLoop2-104-30-10-16_ and the job is run twice (for running multiple jobs one after another) `hadoop jar ~/Nap/mav-had/target/mav-had-0.0.2-SNapSHOT.jar run.AcmMJSort input/x input/y input/z output/hashLoop-Full-24-3-1010-766-2 24 3 "10 10" "slave1 slave3 slave5" "7 6 6" "hashLoop-Full-24-3-1010-766-4" 10`
-
-   + Run Multiway Join Without _Network Awareness_ - Example like the last command with a change in the output directory and the downlink rates (0,0,0) `hadoop jar ~/Nap/mav-had/target/mav-had-0.0.2-SNapSHOT.jar run.AcmMJSort input/x input/y input/z output/hashLoop-Full-24-3-1010-000-2 24 3 "10 10" "slave1 slave3 slave5" "0 0 0" "hashLoop-Full-24-3-1010-000-4" 10`
+ 
+   + Run Multiway Join With _Network Awareness_- Example for running the job on a cluser of master, slave1, slave3, and slave5 nodes with a 7, 6, and 6 respected downlink rates. There are also three reducers and 24 mappers, s1=s2=10 (shared variables for the join), the job name is _oneLoop2-104-30-10-16_ and the job is run twice (for running multiple jobs one after another) 
+   `hadoop jar ~/Nap/mav-had/target/mav-had-0.0.2-SNapSHOT.jar run.AcmMJSort input/x input/y input/z output/hashLoop-Full-24-3-1010-766-2 24 3 "10 10" "slave1 slave3 slave5" "7 6 6" "hashLoop-Full-24-3-1010-766-4" 10`
+   
+   + Run Multiway Join Without _Network Awareness_ - Example like the last command with a change in the output directory and the downlink rates (0,0,0) 
+   `hadoop jar ~/Nap/mav-had/target/mav-had-0.0.2-SNapSHOT.jar run.AcmMJSort input/x input/y input/z output/hashLoop-Full-24-3-1010-000-2 24 3 "10 10" "slave1 slave3 slave5" "0 0 0" "hashLoop-Full-24-3-1010-000-4" 10`
 
    
 2. WordCount Example
@@ -85,7 +89,7 @@ hdfs dfs -put ~/Nap/input/TextFile_MultiwayJoin/z_persons.txt /user/hadoop2/inpu
 
    + Run WordCount Without _Network Awareness_ - Example like the last command with a change in the output directory and the downlink rates (0,0,0)  `hadoop jar ~/AMJ/mav-had/target/mav-had-0.0.2-SNAPSHOT.jar run.WordCountOR2 input/alice output/alice-000-9-1 5 9 "master slave1 slave2" "0 0 0" "alice-000" 2`
 
-### How to Run a Hadoop Multi Node Cluster? Step by Step
+### Running Hadoop Multi Node Cluster? Step by Step
 This was tested on two different clusters:
    + Weak cluster- Three computers, each has Intel core 2 duo, 4 GB RAM, 2 cores, 150GB Disk and Ubuntu 16.04 LTS.
    + Strong cluster (AWS)- Four t2.xlarge, each has Intel core 2 duo, 16 GB RAM, 4 VCPU, 100GB Disk, 10 Gbps link and Ubuntu 14.04 LTS.
@@ -233,7 +237,8 @@ parallel-ssh -h $HADOOP_CONF/slaves "chown -R hadoop2:hadoop2 /usr/local/hadoop"
 ![Image](Security_Group_Example.jpg)
 
 #### Setting Cluster Configuration Files 
-An example of modifing the cluster configuration files, `Nap\hadoop\etc\hdfs-site.xml`, `Nap\hadoop\etc\core-site.xml`, `Nap\hadoop\etc\mapred-site.xml`, and `Nap\hadoop\etc\yarn-site.xml` .
+An example of modifing the cluster configuration files, `Nap\hadoop\etc\hdfs-site.xml`, `Nap\hadoop\etc\core-site.xml`, `Nap\hadoop\etc\mapred-site.xml`, and `Nap\hadoop\etc\yarn-site.xml`.
+Change the _MASTER_NAME_ to a defined name in the `/etc/hosts`, i.e., master.
 1. hdfs-site.xml
 ```
 <configuration>
@@ -269,7 +274,7 @@ An example of modifing the cluster configuration files, `Nap\hadoop\etc\hdfs-sit
 <configuration>
     <property>
         <name>fs.defaultFS</name>
-        <value>hdfs://master:9000</value>
+        <value>hdfs://MASTER_NAME:9000</value>
 		<description>Could be also port 54310.
 		The name of the default file system. 
 		A URI whose scheme and authority determine the FileSystem implementation. 
@@ -354,7 +359,7 @@ An example of modifing the cluster configuration files, `Nap\hadoop\etc\hdfs-sit
     </property>
 	<property>
 		<name>yarn.log.server.url</name>
-		<value>http://master:19888/jobhistory/logs</value>
+		<value>http://MASTER_NAME:19888/jobhistory/logs</value>
     </property>
     <property>
 		<name>yarn.nodemanager.log-dirs</name>
@@ -419,6 +424,12 @@ This will create a 50 MB (can be adjusted) file that will be sent between each p
 ### How to Collect the Job's Parameters and Make Figures?
 Run JobHistory server `HADOOP_HOME/sbin/mr-jobhistory-daemon.sh start historyserver` and define it also in yarn-site.xml then you can http to http://MASTER_IP_ADDRESS:19888 (check AWS connectivity, group policies) and see the all the informartion regarding all the jobs for the curren runnig cluster, for example the counters ![Image](jobHistory/JobHistory_Counters_Example.PNG)
 
+Before running the `Nap/jobHistory/downJobHistory.py` python code, please install _selenium_ and _geckodriver_ using _Anaconda_
+ ```
+ conda install -c conda-forge selenium 
+ conda install -c conda-forge geckodriver
+ ```
+ 
 Using `Nap/jobHistory/downJobHistory.py` we can connect to the node with Job History daemon (23.22.43.90) with cluster id _1548932257169_ and parse to xlsx file (with the prefix _jobsHistory__) the counters infromation we want for all the jobs we need.
 For making figures such as in the article we have published, you can use `HadoopJobStatistics3.nb` and run it on the same directory as the xlsx files.
 
@@ -480,13 +491,25 @@ parallel-scp -h $HADOOP_CONF/slaves $HADOOP_CONF/yarn-site.xml $HADOOP_CONF/yarn
 
 
 ### Job Modification and Partitioner Class (Java) 
+I relate here mostly to `Nap\mav-had\src\main\java\run\AcmMJSort.java`. There are three options of _Reducer class_ (IndexReduceOneLoop, HashReduceOneLoop are SQLReduce ), where _HashReduceOneLoop_ is the fastest.
+
+For modifing Hadoop (YARN) to the network we can optimize the conatiners assignment (which is hard) or use the default assignment and chaneg the data paritioning between the containers, __*when we all the locations*__. For that we use the modified Hadoop code, hadoop directory in Nap, which writes to HDFS the mappers and reducers locations, we make waiting time for the shuffle to minimum (zero seconds, `mapreduce.job.reduce.slowstart.completedmaps` in _mapred-site.xml_) and run a new Partitioner class that assin the data (map output tuples) to the __"right"__ reducers.
 
 #### Job Modification
 
+I have managed to control the number of mappers (by manipulating the split size, see _getSplitSize_ function) and separte the mappers evenly between the reducers by changing the `yarn.scheduler.capacity.per-node-heartbeat.multiple-assignments-enabled` and `yarn.scheduler.capacity.per-node-heartbeat.maximum-container-assignments` fields in `hadoop/etc/hadoop/capacity-scheduler.xm`.
+For more, see my [@thread](https://stackoverflow.com/questions/54056970/how-to-suggest-a-more-balanced-allocation-of-containers-in-hadoop-cluster/54132756#54132756) in Stackoverflow.
+
+
 #### Partitioner Class
 
+Overriding the _Partitioner class_ with _getPartition_ that define the partition number (reducer number) for the output tuple of the mapper. In order to use the locations from the HDFS we need a _Configuration_ structure in the Partitioner class thus our Partitioner class implements `org.apache.hadoop.conf.Configurable`, and we can override `public void setConf (Configuration conf)` and `public Configuration getConf()` functions.
+In setConf we connect to HDFS for reading the containers locations and reading the downlinks we have as an input to the Hadoop job. Then, we save it to _Private static_ variables for _getPartition_ function that assignn each tuple according to the downlinks we have as an input and then uniformly between the reducers on the same node (but for correcness using the same tuple's key would result in the same reducer).
+
+
+
 ### How to Run Wonder Shaper?
-Install from [@here](), and then you can run wondershaper on interface eth0 and limit the downlink to 500024 bytes
+Install from [@here](https://github.com/magnific0/wondershaper), and then you can run wondershaper on interface eth0 and limit the downlink to 500024 bytes
 ``` sudo wondershaper -a eth0 -d 500024 ```
 
 ### How to Access Daemons URIs?
