@@ -8,13 +8,14 @@ Data partition _modification_ which considers the _network_ (nodes' downlinks) f
 * [Features](#features)
 * [Technologies](#technologies)
 * [Usage](#usage)
-   * [Running Job With and Without Network Awareness](#running-job-with-and-without-network-awareness)  
    * [Running Hadoop Multi Node Cluster? Step by Step](#running-hadoop-multi-node-cluster-step-by-step)
      * [Commands Before Running Daemons](#commands-before-running-daemons)
      * [Setting Cluster Configuration Files](#setting-cluster-configuration-files)
      * [Commands for Running Daemons](#commands-for-running-daemons) 
+   * [Running Job With and Without Network Awareness](#running-job-with-and-without-network-awareness)    
    * [How to Test Cluster Links?](#how-to-test-cluster-links)
    * [How to Collect the Job's Parameters and Make Figures?](#how-to-collect-the-jobs-parameters-and-make-figures)
+   * [Useful Commands](#useful-commands) 
 * [Documentation](#documentation)
    * [Job Modification and Partitioner Class (Java)](#job-modification-and-partitioner-class-java)
      * [Job Modification](#job-modification)
@@ -32,8 +33,7 @@ The following file includes all the needed information for using the code and re
  
 ## Features
 This repository includes:
-+ DownUp_SpeedTest 
-   + `downlinkSpeed-test.sh` or `scp-speed-test.sh` or `speedtest-cli` - Testing downlink and uplink between nodes (see [How to Test Cluster Links?](#how-to-test-cluster-links))
++ DownUp_SpeedTest - Testing downlink and uplink between nodes (see [How to Test Cluster Links?](#how-to-test-cluster-links))
 + hadoop - An Hadoop 2.9.1 network aware compiled version (without the source code), the output from compiling project [see @Nap-Hadoop-2.9.1](https://github.com/razo7/Nap-Hadoop-2.9.1).
 + Input- txt files for WordCount example or three tables join, multiway join.
 + mav-had - Maven Eclipse folder with POM file and relavent code under `Nap\mav-had\src\main\java\run` (see [Job Modification and Partitioner Class (Java)](#job-modification-and-partitioner-class-java))
@@ -63,39 +63,15 @@ This repository includes:
 
 ## Usage
 
-### Running Job With and Without Network Awareness
-We present results for ten runs of Hadoop jobs with two different partitions, 
-non-adaptive (uniformly) and adaptive (%non uniformly
-non-uniform, $\partit =(7,~6,~6)$), with $1.6$ GB shuffled data.
-1. Multiway join (Java code) example of three tables, Papers, Papers-Authors, and Authors.
-   + Add three tables 
-```
-hdfs dfs -put ~/Nap/input/TextFile_MultiwayJoin/x_article.txt /user/hadoop2/input/x
-hdfs dfs -put ~/Nap/input/TextFile_MultiwayJoin/y_article_author.txt /user/hadoop2/input/y
-hdfs dfs -put ~/Nap/input/TextFile_MultiwayJoin/z_persons.txt /user/hadoop2/input/z
-```
- 
-   + Run Multiway Join With _Network Awareness_- Example for running the job on a cluser of master, slave1, slave3, and slave5 nodes with a 7, 6, and 6 respected downlink rates. There are also three reducers and 24 mappers, s1=s2=10 (shared variables for the join), the job name is _oneLoop2-104-30-10-16_ and the job is run twice (for running multiple jobs one after another) 
-   `hadoop jar ~/Nap/mav-had/target/mav-had-0.0.2-SNapSHOT.jar run.AcmMJSort input/x input/y input/z output/hashLoop-Full-24-3-1010-766-2 24 3 "10 10" "slave1 slave3 slave5" "7 6 6" "hashLoop-Full-24-3-1010-766-4" 10`
-   
-   + Run Multiway Join Without _Network Awareness_ - Example like the last command with a change in the output directory and the downlink rates (0,0,0) 
-   `hadoop jar ~/Nap/mav-had/target/mav-had-0.0.2-SNapSHOT.jar run.AcmMJSort input/x input/y input/z output/hashLoop-Full-24-3-1010-000-2 24 3 "10 10" "slave1 slave3 slave5" "0 0 0" "hashLoop-Full-24-3-1010-000-4" 10`
-
-   
-2. WordCount Example
-   + Add text file- Alice in the wonderland `hdfs dfs -put ~/Nap/input/TextFile_wc/alice.txt /user/hadoop2/input/alice`
-   
-   + Run WordCount With _Network Awareness_- Example for running the job on a cluser of master, slave1, and slave2 nodes with a 25, 10, and 20 respected downlink rates. There are also nine reducers and five mappers, the job name is _alice-000_ and the job is run twice (for running multiple jobs one after another) `hadoop jar ~/AMJ/mav-had/target/mav-had-0.0.2-SNAPSHOT.jar run.WordCountOR2 input/alice output/alice-251020-9-1 5 9 "master slave1 slave2" "25 10 20" "alice-000" 2`
-
-   + Run WordCount Without _Network Awareness_ - Example like the last command with a change in the output directory and the downlink rates (0,0,0)  `hadoop jar ~/AMJ/mav-had/target/mav-had-0.0.2-SNAPSHOT.jar run.WordCountOR2 input/alice output/alice-000-9-1 5 9 "master slave1 slave2" "0 0 0" "alice-000" 2`
-
 ### Running Hadoop Multi Node Cluster? Step by Step
 This was tested on two different clusters:
    + Weak cluster- Three computers, each has Intel core 2 duo, 4 GB RAM, 2 cores, 150GB Disk and Ubuntu 16.04 LTS.
    + Strong cluster (AWS)- Four t2.xlarge, each has Intel core 2 duo, 16 GB RAM, 4 VCPU, 100GB Disk, 10 Gbps link and Ubuntu 14.04 LTS.
    One of the instances is a master for NameNode (NN) and Resource Manager (RM), and the rest are three slaves for Datanode (DN), and Node Manager (NM).
 #### Commands Before Running Daemons
-1. USER- Create a user, _hadoop2_, and grant it with permissions, the name of this user will be used as the user for HDFS.
+All of this commands are recommended for a running a new computer, when you have a new cluster on AWS but if not just do the steps (on _numbers_) and make sure the rest is covered.
+
++ USER (Skip)- Create a user, _hadoop2_, and grant it with permissions, the name of this user will be used also as the user for HDFS. 
 ```
 sudo useradd -m hadoop2
 sudo passwd hadoop2
@@ -105,7 +81,7 @@ su hadoop2
 
 cd
 ```
-2. GIT- For big files to upload we need git-lfs (Optional to use Git)
++ GIT (Optional to use Git)- For big files to upload we need git-lfs 
 ```
 sudo add-apt-repository ppa:git-core/ppa
 curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
@@ -115,7 +91,7 @@ git lfs install
 git config --global credential.helper cache
 git clone https://github.com/razo7/Nap.git
 ```
-3. IPV6- Disable ipv6, Append the following to the end of the file (Optional)
++ IPV6 (Optional)- Disable ipv6, Append the following to the end of the file 
 ```
 sudo nano /etc/sysctl.conf   	
 	#disable ipv6
@@ -123,13 +99,13 @@ net.ipv6.conf.all.disable_ipv6 = 1
 net.ipv6.conf.default.disable_ipv6 = 1
 net.ipv6.conf.lo.disable_ipv6 = 1
 ```
-4. JAVA- Download Java 8
+1. JAVA- Download Java 8
 ```
 sudo add-apt-repository ppa:webupd8team/java
 sudo apt-get update
 sudo apt-get install oracle-java8-installer
 ```
-5. ENV- Set enviroment variables (use .bashrc or use export each time, for finding jre run `sudo update-alternatives --config java`)
+2. ENV- Set enviroment variables (use .bashrc or use export each time, for finding jre run `sudo update-alternatives --config java`)
 ```
 sudo nano .bashrc
 JAVA_HOME="/usr/lib/jvm/java-8-oracle"
@@ -151,31 +127,31 @@ PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/u
 
 . .bashrc
 ```
-6. HADOOP- Copy hadoop direcory from my Github repository (Nap) 
++ HADOOP (Optional)- Copy hadoop direcory from my Github repository (Nap) 
 ```
 sudo cp -r ~/Nap/hadoop /usr/local/
 sudo chmod -R 777 $HADOOP_HOME #create hadoop direcory with premission
 sudo chown -R hadoop2:hadoop2 /usr/local/hadoop
 ```
-7. TIME- choose a consistent timezone 
++ TIME (Optional)- choose a consistent timezone 
 ```
 echo "Asia/Jerusalem" | sudo tee /etc/timezone
 sudo dpkg-reconfigure --frontend noninteractive tzdata
 ```
-8. MySQL- Create a database (Optional)
++ MySQL (Optional)- Create a database 
 ```
 mysql   -u  root   -p
 root
 CREATE DATABASE acm_ex;
 ```
-9. PSSH- Enables Parallel SSH
++ PSSH (Optional)- Enables Parallel SSH 
 ```
 sudo apt install python-pip python-setuptools  #install PIP for PSSH – Parallel SSH
 sudo apt-get install pssh
 ```
-10. Hostname- Update hostname
++ Hostname (Optional)- Update hostname 
 ``` sudo nano /etc/hostname ```
-11. HOSTS- Update hosts names for easy ssh - the following is an example using Public IPs (MASTER_NAME- master)
+3. HOSTS- Update hosts names for easy ssh - the following is an example using Public IPs (MASTER_NAME- master), *important* for using Hadoop.
 ```
 sudo nano /etc/hosts #every node all the other nodes in the cluster by their name
 127.0.0.1 localhost
@@ -186,7 +162,7 @@ sudo nano /etc/hosts #every node all the other nodes in the cluster by their nam
 35.176.236.213 slave4
 35.177.54.37 slave5
 ```
-12. EXCHANGE KEYS- make a passwordless ssh to all the slaves- create key and exchange it OR ssh and save the key as in the terminal it might ask
+4. EXCHANGE KEYS- make a passwordless ssh to all the slaves- create key and exchange it OR ssh and save the key as in the terminal it might ask, *important* for using Hadoop.
 ```
 ssh-keygen -t rsa -P '' -f ~/.ssh/id_rsa # create an RSA key without authntication and save it to ~/.ssh/id_rsa
 cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys #move it  ~/.ssh/authorized_keys
@@ -197,7 +173,7 @@ ssh-copy-id -i ~/.ssh/id_rsa.pub slave3
 ssh-copy-id -i ~/.ssh/id_rsa.pub slave4 
 ssh-copy-id -i ~/.ssh/id_rsa.pub slave5 
 ```
-13. SLAVES FILE- UPDATE HADOOP_CONF
+5. SLAVES FILE- UPDATE HADOOP_CONF, *important* for using Hadoop.
 ```
 slave1
 slave2
@@ -205,13 +181,13 @@ slave3
 slave4
 slave5
 ```
-14. CLEANING- Clean old files and copy from GIT
++ CLEANING (Optional)- Clean old files and copy from GIT 
 ```
 sudo rm -rf $HADOOP_HOME/*
 sudo cp -r Nap/hadoop/* $HADOOP_HOME
 sudo mkdir -p $HADOOP_HOME/data/hadoop-data/nn $HADOOP_HOME/data/hadoop-data/snn $HADOOP_HOME/data/hadoop-data/dn $HADOOP_HOME/data/hadoop-data/mapred/system $HADOOP_HOME/data/hadoop-data/mapred/local #create direcories for future logs if they are not existed
 ```
-15. COPYING- UPDATE HADOOP_CONF
+6. COPYING- UPDATE HADOOP_CONF, copying from one node to the rest 
 ```
 parallel-ssh -h $HADOOP_CONF/slaves "rm -rf $HADOOP_HOME/*"
 scp -r $HADOOP_HOME/* slave1:$HADOOP_HOME
@@ -222,7 +198,7 @@ scp -r $HADOOP_HOME/* slave5:$HADOOP_HOME
 parallel-ssh -h $HADOOP_CONF/slaves "chmod -R 777 $HADOOP_HOME"
 parallel-ssh -h $HADOOP_CONF/slaves "chown -R hadoop2:hadoop2 /usr/local/hadoop"
 ```
-16. UPDATE JAVA ENV-Might need to update two enviroment variables used by Hadoop in Nap/hadoop/etc/hadoop/hadoop-env.sh
++ UPDATE JAVA ENV (Optional)- Might need to update two enviroment variables used by Hadoop in Nap/hadoop/etc/hadoop/hadoop-env.sh 
     + FOR ORACLE
     ```
     export JAVA_HOME="/usr/lib/jvm/java-8-oracle"
@@ -233,7 +209,7 @@ parallel-ssh -h $HADOOP_CONF/slaves "chown -R hadoop2:hadoop2 /usr/local/hadoop"
     export JAVA_HOME="/usr/lib/jvm/java-8-openjdk-amd64"
     export HADOOP_HOME="/usr/local/hadoop"
     ```
-17. SECURITY GROUP- Create security group (per region) and change the inbound rules with All-TRAFFIC rules for each machine in the cluster (elastic IP) as in the following example.
++ SECURITY GROUP in AWS (Only for AWS cluster)- Create security group (per region) and change the inbound rules with All-TRAFFIC rules for each machine in the cluster (elastic IP) as in the following example. 
 ![Image](Security_Group_Example.jpg)
 
 #### Setting Cluster Configuration Files 
@@ -348,6 +324,7 @@ Change the _MASTER_NAME_ to a defined name in the `/etc/hosts`, i.e., master.
 </configuration>
 ```
 4. yarn-site.xml
+ The log aggregation is *highly recommended*
 ```
 	<property>
 		<name>yarn.nodemanager.aux-services</name>
@@ -422,7 +399,35 @@ hdfs dfs -mkdir /user/hadoop2
 hdfs dfs -mkdir /user/hadoop2/input 
 hdfs dfs -mkdir /user/hadoop2/output
 ```
-  
+### Running Job With and Without Network Awareness
+Do one of the follwing when you have up and running Hadoop in your system (you can do the [@above](#running-hadoop-multi-node-cluster-step-by-step) steps).
+
+Pattern of running my hadoop code `hadoop jar MY_JAR PACKAGE_CLASS INUPUT OUTPUT SPLIT_SIZE NUM_REDUCER DOWNLINK_VEC JOB1_NAME ROUNDS`
+
+1. Multiway join (Java code) example of three tables, Papers, Papers-Authors, and Authors.
+   + Add three tables (ACM rows: 1,818,114 -> X, 4,795,532 -> Y, 3,885,527 -> Z)
+   
+```
+hdfs dfs -put ~/Nap/input/TextFile_MultiwayJoin/x_article.txt /user/hadoop2/input/x
+hdfs dfs -put ~/Nap/input/TextFile_MultiwayJoin/y_article_author.txt /user/hadoop2/input/y
+hdfs dfs -put ~/Nap/input/TextFile_MultiwayJoin/z_persons.txt /user/hadoop2/input/z
+```
+ 
+   + Run Multiway Join With _Network Awareness_- Example for running the job on a cluser of master, slave1, slave3, and slave5 nodes with a 7, 6, and 6 respected downlink rates. There are also three reducers and 24 mappers, s1=s2=10 (shared variables for the join), the job name is _oneLoop2-104-30-10-16_ and the job is run twice (for running multiple jobs one after another) 
+   `hadoop jar ~/Nap/mav-had/target/mav-had-0.0.2-SNapSHOT.jar run.AcmMJSort input/x input/y input/z output/hashLoop-Full-24-3-1010-766-2 24 3 "10 10" "slave1 slave3 slave5" "7 6 6" "hashLoop-Full-24-3-1010-766-4" 10`
+   
+   + Run Multiway Join Without _Network Awareness_ - Example like the last command with a change in the output directory and the downlink rates (0,0,0) 
+   `hadoop jar ~/Nap/mav-had/target/mav-had-0.0.2-SNapSHOT.jar run.AcmMJSort input/x input/y input/z output/hashLoop-Full-24-3-1010-000-2 24 3 "10 10" "slave1 slave3 slave5" "0 0 0" "hashLoop-Full-24-3-1010-000-4" 10`
+
+   
+2. WordCount Example
+   + Add text file- Alice in the wonderland `hdfs dfs -put ~/Nap/input/TextFile_wc/alice.txt /user/hadoop2/input/alice`
+   
+   + Run WordCount With _Network Awareness_- Example for running the job on a cluser of master, slave1, and slave2 nodes with a 25, 10, and 20 respected downlink rates. There are also nine reducers and five mappers, the job name is _alice-000_ and the job is run twice (for running multiple jobs one after another) `hadoop jar ~/AMJ/mav-had/target/mav-had-0.0.2-SNAPSHOT.jar run.WordCountOR2 input/alice output/alice-251020-9-1 5 9 "master slave1 slave2" "25 10 20" "alice-000" 2`
+
+   + Run WordCount Without _Network Awareness_ - Example like the last command with a change in the output directory and the downlink rates (0,0,0)  `hadoop jar ~/AMJ/mav-had/target/mav-had-0.0.2-SNAPSHOT.jar run.WordCountOR2 input/alice output/alice-000-9-1 5 9 "master slave1 slave2" "0 0 0" "alice-000" 2`
+
+
 ### How to Test Cluster Links?
 Under _DownUp_SpeedTest_ directory there are few options
 1. Check the average downlink results automatically by running from one node, master, `./testClusterD.sh slave1 slave2 slave3 slave4 slave5 ` or `bash testClusterD.sh slave1 slave2 slave3 slave4 slave5 ` when having five more nodes in the cluster.
@@ -451,57 +456,53 @@ For making figures such as in the article we have published, you can use `Hadoop
 
 ### Useful Commands
 
-1. JAR- build jar file from the current directory using POM file `mvn clean install`
-2. Premission- change premission, to read and write to the directory and it's sub directories `sudo chmod -R ugo+rw FOLDER`
-3. Initialization HDFS- Format the filesystem, clear the tree of metadata, the files are lost to the master but are not deleted `hdfs namenode -format`
-4. Start HDFS- start HDFS deamons and identifies the logs directories `start-dfs.sh`
-5. Make the HDFS directories required to execute MapReduce jobs 
-```
-hdfs dfs -mkdir /user
-hdfs dfs -mkdir /user/<username>
-```
-6. Upload HDFS- upload to HDFS directory DIRECTORY which will be directed as "input", not the file itself! `hdfs dfs -put DIRECTORY input`
-7. Running- run hadoop with HDFS `hadoop jar MY_JAR PACKAGE_CLASS INUPUT OUTPUT SPLIT_SIZE NUM_REDUCER DOWNLINK_VEC JOB1_NAME JOB2_NAME`
-8. Delete HDFS- delete from hdfs directory DIRECTORY `hadoop fs -rm -r /user/hadoop2/output/*`
-9. Start/Stop HDFS- start or stop HDFS (NameNode, DataNode, SecondaryNameNode) `start-dfs.sh 		or sbin/stop-dfs.sh`
-10. Start/Stop YARN- start or stop YARN (ResourceManager and NodeManager deamons!) `start-yarn.sh 		or sbin/stop-yarn.sh`
-11. NCDC- download ncdc dataset- `sudo bash ncdc.sh START_YEAR END_YEATR`
-12. Time- set time `sudo date -s "03 OCT 2018 13:41:00"`
-13. Clean- clean version files after namenode Format, some unknown errors of cluser ID incossitent `rm -rf $HADOOP_HOME/data/hadoop-data/*`
-14. Seeking- seek in /user/hadoop2 HDFS direcory `hadoop fs -ls output/book`
-15. Show HDFS- display content of part-r-00000 output `hadoop fs -cat output/book/part-r-00000`
-16. Clean Log- clean log files `rm -rf $HADOOP_HOME/logs/*`
-17. Safemode- leave safemode `hdfs dfsadmin -safemode leave`
-18. Clean Userlog- clean userlog files- stdout stderr `rm -rf $HADOOP_HOME/logs/userlogs/*`
-19. Kill App- kill application by it's ID, APP_ID `yarn application -kill APP_ID`
-20. List App- Lists applications from the RM `yarn application -list -appStates ALL`
-21. Start/Stop history- Start/Stop job history server in MASTER_NAME node
+#### HDFS and Hadoop
+
+1. JAR - build jar file from the current directory using POM file `mvn clean install`
+2. Initialization HDFS - Format the filesystem, clear the tree of metadata, the files are lost to the master but are not deleted `hdfs namenode -format`
+3. Start/Stop HDFS - start or stop HDFS (NameNode, DataNode, SecondaryNameNode) `start-dfs.sh 		or sbin/stop-dfs.sh`
+4. Start/Stop YARN - start or stop YARN (ResourceManager and NodeManager deamons!) `start-yarn.sh 		or sbin/stop-yarn.sh`
+5. Start/Stop history - Start/Stop job history server in MASTER_NAME node
 ```
 $HADOOP_HOME/sbin/mr-jobhistory-daemon.sh start historyserver
 $HADOOP_HOME/sbin/mr-jobhistory-daemon.sh stop historyserver
 ```
-22. HDFS Space- measure the space occupied in local node or in HDFS 
+6. Upload HDFS - upload to HDFS directory DIRECTORY which will be directed as "input", not the file itself! `hdfs dfs -put DIRECTORY input`
+7. Download HDFS - download files `hadoop fs -get /hdfs/source/path /localfs/destination/path`
+8. Delete HDFS - delete from hdfs directory DIRECTORY `hadoop fs -rm -r /user/hadoop2/output/*`
+9. HDFS Premission - change premission of all the files and folders under /app-logs in HDFS `hdfs dfs -chmod -R 755 /app-logs`
+10. Seeking - seek in /user/hadoop2 HDFS direcory `hadoop fs -ls output/book`
+11. Show HDFS - display content of part-r-00000 output `hadoop fs -cat output/book/part-r-00000`
+12. HDFS Space - measure the space occupied in local node or in HDFS 
 ``` 
 df -h
 hadoop fs - du -h
 ```
-23. HDFS Premission- change premission of all the files and folders under /app-logs in HDFS `hdfs dfs -chmod -R 755 /app-logs`
-24. Download HDFS- download files `hadoop fs -get /hdfs/source/path /localfs/destination/path`
-25. Delete old files- Delete old direcories, logs, temporary files and input/output
+13. Kill App - kill application by it's ID, APP_ID `yarn application -kill APP_ID`
+14. List App - Lists applications from the RM `yarn application -list -appStates ALL`
+15. Clean old data - clean version files after namenode Format, some unknown errors of cluser ID incossitent `rm -rf $HADOOP_HOME/data/hadoop-data/*`
+16. Clean Log - clean log files `rm -rf $HADOOP_HOME/logs/*`
+17. Clean Userlog - clean userlog files- stdout stderr `rm -rf $HADOOP_HOME/logs/userlogs/*`
+18. Delete old files - Delete old direcories, logs, temporary files and input/output
 ```
 hadoop fs -rm -r /user/*
 hadoop fs -rm -r /app-logs/*
 hadoop fs -rm -r /tmp/*
 ```
-26. HDFS file details- Present the output/x12-Test-9-1/0//part-r-00000* file details `hadoop fs -cat output/x12-Test-9-1/0//part-r-00000*`
-
-+ UPDATING- Updating the mapred-site and yarn-site with the new MB requirements for the containers or other YARN parameters
+19. Updating - Updating the mapred-site and yarn-site with the new MB requirements for the containers or other YARN parameters
 ```
 parallel-scp -h $HADOOP_CONF/slaves $HADOOP_CONF/mapred-site.xml $HADOOP_CONF/mapred-site.xml
 parallel-scp -h $HADOOP_CONF/slaves $HADOOP_CONF/yarn-site.xml $HADOOP_CONF/yarn-site.xml
 ```
-+ WATCHING- Checking for DFS changes by terminal, used when I got an error with no DISK left due to large mid-processing data
+20. Safemode - leave safemode `hdfs dfsadmin -safemode leave`
+21.  Watching - Checking for DFS changes by terminal, used when I got an error with no DISK left due to large mid-processing data
  ``` watch "hdfs dfsadmin -report | grep 'DFS Remaining'" ```
+
+#### Linux and More
+
+22. NCDC - download ncdc dataset- `sudo bash ncdc.sh START_YEAR END_YEATR`
+23. Premission - change premission, to read and write to the directory and it's sub directories `sudo chmod -R ugo+rw FOLDER`
+23. Time - set time `sudo date -s "03 OCT 2018 13:41:00"`
 
 ## Documentation 
 
