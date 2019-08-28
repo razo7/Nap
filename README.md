@@ -269,6 +269,22 @@ Change the _MASTER_NAME_ to a defined name in the `/etc/hosts`, i.e., master.
 	
 </configuration>
 ```
+* Add the next two properties when running in EC2.*
+```
+
+    <property>
+        <name>dfs.client.use.datanode.hostname</name>
+        <value>true</value>
+        <description>Whether clients should use datanode hostnames when connecting to datanodes.</description>
+    </property>
+    <property>
+        <name>dfs.datanode.use.datanode.hostname</name>
+        <value>true</value>
+        <description>Whether datanodes should use datanode hostnames when connecting to other datanodes for data transfer.</description>
+    </property>
+	
+```
+
 2. core-site.xml
 ```
 <configuration>
@@ -491,28 +507,51 @@ parallel-scp -h $HADOOP_CONF/slaves $HADOOP_CONF/yarn-site.xml $HADOOP_CONF/yarn
 
 
 ### Job Modification and Partitioner Class (Java) 
-I relate here mostly to `Nap\mav-had\src\main\java\run\AcmMJSort.java`. There are three options of _Reducer class_ (IndexReduceOneLoop, HashReduceOneLoop are SQLReduce ), where _HashReduceOneLoop_ is the fastest.
+Here, I relate mostly to `Nap\mav-had\src\main\java\run\AcmMJSort.java` when there are three options for _Reducer class_ (IndexReduceOneLoop, HashReduceOneLoop are SQLReduce ) in the code, and _HashReduceOneLoop_ has been chosen as it has been proven to be the fastest.
 
-For modifing Hadoop (YARN) to the network we can optimize the conatiners assignment (which is hard) or use the default assignment and chaneg the data paritioning between the containers, __*when we all the locations*__. For that we use the modified Hadoop code, hadoop directory in Nap, which writes to HDFS the mappers and reducers locations, we make waiting time for the shuffle to minimum (zero seconds, `mapreduce.job.reduce.slowstart.completedmaps` in _mapred-site.xml_) and run a new Partitioner class that assin the data (map output tuples) to the __"right"__ reducers.
+For modifing Hadoop (YARN) to the network we can optimize the conatiners assignment/placement (which is hard) or use the default assignment and chaneg the data paritioning between the containers, __*when we know all the locations*__. For that we use the modified Hadoop code, hadoop directory in Nap, which writes to HDFS the mappers and reducers locations, we make the waiting time for the shuffle to minimum (zero seconds, `mapreduce.job.reduce.slowstart.completedmaps` in _mapred-site.xml_), and run a new Partitioner class that assins the data (map output tuples) to the __"right"__ reducers.
 
 #### Job Modification
 
-I have managed to control the number of mappers (by manipulating the split size, see _getSplitSize_ function) and separte the mappers evenly between the reducers by changing the `yarn.scheduler.capacity.per-node-heartbeat.multiple-assignments-enabled` and `yarn.scheduler.capacity.per-node-heartbeat.maximum-container-assignments` fields in `hadoop/etc/hadoop/capacity-scheduler.xm`.
+I have managed to control the number of mappers (by manipulating the split size, see _getSplitSize_ function) and separte the mappers evenly between the reducers by changing the number of container allocations per heartbeat (`yarn.scheduler.capacity.per-node-heartbeat.multiple-assignments-enabled` and `yarn.scheduler.capacity.per-node-heartbeat.maximum-container-assignments` fields in `hadoop/etc/hadoop/capacity-scheduler.xm`) .
 For more, see my [@thread](https://stackoverflow.com/questions/54056970/how-to-suggest-a-more-balanced-allocation-of-containers-in-hadoop-cluster/54132756#54132756) in Stackoverflow.
+An example-
+```
+  <property>
 
+<name>yarn.scheduler.capacity.per-node-heartbeat.multiple-assignments-enabled</name>
+    <value>true</value>
+    <description>
+        Whether to allow multiple container assignments in one NodeManager
+heartbeat. Defaults to true.
+    </description>
+  </property>
+  <property>
+
+<name>yarn.scheduler.capacity.per-node-heartbeat.maximum-container-assignments</name>
+    <value>7</value>
+    <description>
+        If multiple-assignments-enabled is true, the maximum amount of
+containers that can be assigned in one NodeManager heartbeat. Defaults to
+-1, which sets no limit.
+    </description>
+  </property>
+```
 
 #### Partitioner Class
 
-Overriding the _Partitioner class_ with _getPartition_ that define the partition number (reducer number) for the output tuple of the mapper. In order to use the locations from the HDFS we need a _Configuration_ structure in the Partitioner class thus our Partitioner class implements `org.apache.hadoop.conf.Configurable`, and we can override `public void setConf (Configuration conf)` and `public Configuration getConf()` functions.
-In setConf we connect to HDFS for reading the containers locations and reading the downlinks we have as an input to the Hadoop job. Then, we save it to _Private static_ variables for _getPartition_ function that assignn each tuple according to the downlinks we have as an input and then uniformly between the reducers on the same node (but for correcness using the same tuple's key would result in the same reducer).
-
-
+Overriding the _Partitioner class_ with _getPartition_ that define the partition number (reducer number) for the output tuple of the mapper. In order to use the locations from the HDFS we need a _Configuration_ structure in the Partitioner class, thus our Partitioner class implements `org.apache.hadoop.conf.Configurable`, and we can override `public void setConf (Configuration conf)` and `public Configuration getConf()` functions.
+In setConf we connect to HDFS for reading the containers locations and reading the downlinks we have as an input to the Hadoop job. Then, we save it to _Private static_ variables for _getPartition_ function that assigns each tuple according to the downlinks we have as an input.
+It begins by choosing a node based on the downlinks rates, and the tuple's key (hash function).
+Then, after we know the node we use again the tuples's key for choosing uniformly a reducer out of the running containers, _getPartition_ function  does not simply partition the data uniformly between the reducers. 
 
 ### How to Run Wonder Shaper?
 Install from [@here](https://github.com/magnific0/wondershaper), and then you can run wondershaper on interface eth0 and limit the downlink to 500024 bytes
 ``` sudo wondershaper -a eth0 -d 500024 ```
 
 ### How to Access Daemons URIs?
+When running with EC2 there is a need to be on the same LAN for accesing the node and explicitly these ports.
+
 + Name_Node_URL http://MASTER_IP_ADDRESS:50070
 + YARN_URL http://MASTER_IP_ADDRESS:8088
 + Job_History: http://MASTER_IP_ADDRESS:19888
@@ -526,6 +565,7 @@ Install from [@here](https://github.com/magnific0/wondershaper), and then you ca
 +  Installing Git lfs from [@here](https://github.com/git-lfs/git-lfs/wiki/Installation)
 +  Alice's Adventures in Wonderland by Lewis Carroll [@text file](http://www.gutenberg.org/ebooks/11?msg=welcome_stranger)
 +  Install java 8 - [@Link1](https://tecadmin.net/install-oracle-java-8-ubuntu-via-ppa/), [@Link2](   https://stackoverflow.com/questions/43587635/dpkg-error-processing-package-oracle-java8-installer-configure), and [@Link3](    https://askubuntu.com/questions/84483/how-to-completely-uninstall-java)
++ Hadoop Counters Explained and Apache documentation - [@Link1](https://www.coding-daddy.xyz/node/8) [@Link2](https://hadoop.apache.org/docs/r2.4.1/hadoop-yarn/hadoop-yarn-site/HistoryServerRest.html)
 +  Set the time zone in EC2 - [@Link1](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/set-time.html) and [@Link2](https://stackoverflow.com/questions/11931566/how-to-set-the-time-zone-in-amazon-ec2)
 +  NCDC Dataset from [@here](https://gist.github.com/Alexander-Ignatyev/6478289)
 ## Contact

@@ -1,8 +1,4 @@
-# https://hadoop.apache.org/docs/r2.4.1/hadoop-yarn/hadoop-yarn-site/HistoryServerRest.html
-# Hadoop Counters Explained -> http://www.coding-daddy.xyz/node/8
-# https://xlsxwriter.readthedocs.io/worksheet.html / https://realpython.com/python-csv/
-
-# install - conda install -c conda-forge selenium , conda install -c conda-forge geckodriver
+# prerequisites installation -  selenium and geckodriver = conda install -c conda-forge selenium , conda install -c conda-forge geckodriver
 from selenium import webdriver
 import xlsxwriter
 import xml.etree.ElementTree as ET
@@ -225,3 +221,8 @@ myMain("23.22.43.90", "1548932257169", range(63, 73), "10_AMJ_31Jan_131212")
 #myMain("23.22.43.90", "1548932257169", range(61, 71), "10_AMJ_31Jan_857")
 #myMain("23.22.43.90", "1548932257169", range(71, 81), "10_AMJ_31Jan_968")
 driver.close()
+
+# Sources:
+# Apache Doc -> https://hadoop.apache.org/docs/r2.4.1/hadoop-yarn/hadoop-yarn-site/HistoryServerRest.html
+# Hadoop Counters Explained -> http://www.coding-daddy.xyz/node/8
+# Working with xlsx in Python -> https://xlsxwriter.readthedocs.io/worksheet.html / https://realpython.com/python-csv/
