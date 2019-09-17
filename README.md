@@ -570,4 +570,4 @@ When running with EC2 there is a need to be on the same LAN for accesing the nod
 +  Set the time zone in EC2 - [@Link1](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/set-time.html) and [@Link2](https://stackoverflow.com/questions/11931566/how-to-set-the-time-zone-in-amazon-ec2)
 +  NCDC Dataset from [@here](https://gist.github.com/Alexander-Ignatyev/6478289)
 ## Contact
-Created by Or Raz (razo7) as part of the master's thesis work and [@article](IEEE.com) - feel free to contact me on [@Linkedin](https://www.linkedin.com/in/or-raz/) or [@Email](razo@post.bgu.ac.il) !
+Created by Or Raz (razo7) as part of the master's thesis work and [@article](http://eprints.cs.univie.ac.at/6111/) - feel free to contact me on [@Linkedin](https://www.linkedin.com/in/or-raz/) or razo@post.bgu.ac.il !
