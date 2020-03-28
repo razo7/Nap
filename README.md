@@ -8,7 +8,7 @@ Data partition _modification_ which considers the _network_ (nodes' downlinks) f
 * [Features](#features)
 * [Technologies](#technologies)
 * [Usage](#usage)
-   * [Running Hadoop Multi Node Cluster? Step by Step](#running-hadoop-multi-node-cluster-step-by-step)
+   * [Running Hadoop Multi Node Cluster (Step by Step)](#running-hadoop-multi-node-cluster-step-by-step)
      * [Commands Before Running Daemons](#commands-before-running-daemons)
      * [Setting Cluster Configuration Files](#setting-cluster-configuration-files)
      * [Commands for Running Daemons](#commands-for-running-daemons) 
@@ -34,7 +34,7 @@ The following file includes all the needed information for using the code and re
 ## Features
 This repository includes:
 + DownUp_SpeedTest - Testing downlink and uplink between nodes (see [How to Test Cluster Links?](#how-to-test-cluster-links))
-+ hadoop - An Hadoop 2.9.1 network aware compiled version (without the source code), the output from compiling project [see @Nap-Hadoop-2.9.1](https://github.com/razo7/Nap-Hadoop-2.9.1).
++ hadoop - An Hadoop 2.9.1 network aware compiled version (without the source code), the output from compiling project [see Nap-Hadoop-2.9.1](https://github.com/razo7/Nap-Hadoop-2.9.1).
 + Input- txt files for WordCount example or three tables join, multiway join.
 + mav-had - Maven Eclipse folder with POM file and relavent code under `Nap\mav-had\src\main\java\run` (see [Job Modification and Partitioner Class (Java)](#job-modification-and-partitioner-class-java))
   + `AcmMJ.java` - Old implematation of the multiway join (without secondary sort)
@@ -63,7 +63,7 @@ This repository includes:
 
 ## Usage
 
-### Running Hadoop Multi Node Cluster? Step by Step
+### Running Hadoop Multi Node Cluster (Step by Step)
 This was tested on two different clusters:
    + Weak cluster- Three computers, each has Intel core 2 duo, 4 GB RAM, 2 cores, 150GB Disk and Ubuntu 16.04 LTS.
    + Strong cluster (AWS)- Four t2.xlarge, each has Intel core 2 duo, 16 GB RAM, 4 VCPU, 100GB Disk, 10 Gbps link and Ubuntu 14.04 LTS.
@@ -400,7 +400,7 @@ hdfs dfs -mkdir /user/hadoop2/input
 hdfs dfs -mkdir /user/hadoop2/output
 ```
 ### Running Job With and Without Network Awareness
-Do one of the follwing when you have up and running Hadoop in your system (you can do the [@above](#running-hadoop-multi-node-cluster-step-by-step) steps).
+Do one of the follwing when you have up and running Hadoop in your system (you can do the [above](#running-hadoop-multi-node-cluster-step-by-step) steps).
 
 Pattern of running my hadoop code `hadoop jar MY_JAR PACKAGE_CLASS INUPUT OUTPUT SPLIT_SIZE NUM_REDUCER DOWNLINK_VEC JOB1_NAME ROUNDS`
 
@@ -443,7 +443,7 @@ This will create a 50 MB (can be adjusted) file that will be sent between each p
 2. Testing downlink and uplink between a pair of nodes using `downlinkSpeed-test.sh` or `scp-speed-test.sh` or `speedtest-cli`.
 
 ### How to Collect the Job's Parameters and Make Figures?
-Run JobHistory server `HADOOP_HOME/sbin/mr-jobhistory-daemon.sh start historyserver` and define it also in yarn-site.xml then you can http to http://MASTER_IP_ADDRESS:19888 (check AWS connectivity, group policies) and see the all the informartion regarding all the jobs for the curren runnig cluster, for example the counters ![Image](jobHistory/JobHistory_Counters_Example.PNG)
+Run JobHistory server `HADOOP_HOME/sbin/mr-jobhistory-daemon.sh start historyserver` and define it also in yarn-site.xml then you can browse to http://MASTER_IP_ADDRESS:19888 (check AWS connectivity, group policies) and see the all the informartion regarding all the jobs for the curren runnig cluster, for example the counters ![Image](jobHistory/JobHistory_Counters_Example.PNG)
 
 Before running the `Nap/jobHistory/downJobHistory.py` python code, please install _selenium_ and _geckodriver_ using _Anaconda_
  ```
@@ -515,7 +515,7 @@ For modifing Hadoop (YARN) to the network we can optimize the conatiners assignm
 #### Job Modification
 
 I have managed to control the number of mappers (by manipulating the split size, see _getSplitSize_ function) and separte the mappers evenly between the reducers by changing the number of container allocations per heartbeat (`yarn.scheduler.capacity.per-node-heartbeat.multiple-assignments-enabled` and `yarn.scheduler.capacity.per-node-heartbeat.maximum-container-assignments` fields in `hadoop/etc/hadoop/capacity-scheduler.xm`) .
-For more, see my [@thread](https://stackoverflow.com/questions/54056970/how-to-suggest-a-more-balanced-allocation-of-containers-in-hadoop-cluster/54132756#54132756) in Stackoverflow.
+For more, see my [thread](https://stackoverflow.com/questions/54056970/how-to-suggest-a-more-balanced-allocation-of-containers-in-hadoop-cluster/54132756#54132756) in Stackoverflow.
 An example-
 ```
   <property>
@@ -547,7 +547,7 @@ It begins by choosing a node based on the downlinks rates, and the tuple's key (
 Then, after we know the node we use again the tuples's key for choosing uniformly a reducer out of the running containers, _getPartition_ function  does not simply partition the data uniformly between the reducers. 
 
 ### How to Run Wonder Shaper?
-Install from [@here](https://github.com/magnific0/wondershaper), and then you can run wondershaper on interface eth0 and limit the downlink to 500024 bytes
+Install from [here](https://github.com/magnific0/wondershaper), and then you can run wondershaper on interface eth0 and limit the downlink to 500024 bytes
 ``` sudo wondershaper -a eth0 -d 500024 ```
 
 ### How to Access Daemons URIs?
@@ -561,13 +561,13 @@ When running with EC2 there is a need to be on the same LAN for accesing the nod
 
 
 ## Sources
-+  Alec Jacobson alecjacobsonATgmailDOTcom [@scp-speed-test.sh](https://www.alecjacobson.com/weblog/?p=635)
-+  Nap-Hadoop-2.9.1 [@repisotory](https://github.com/razo7/Nap-Hadoop-2.9.1) with the Hadoop source code and the network aware changes 
-+  Installing Git lfs from [@here](https://github.com/git-lfs/git-lfs/wiki/Installation)
-+  Alice's Adventures in Wonderland by Lewis Carroll [@text file](http://www.gutenberg.org/ebooks/11?msg=welcome_stranger)
-+  Install java 8 - [@Link1](https://tecadmin.net/install-oracle-java-8-ubuntu-via-ppa/), [@Link2](   https://stackoverflow.com/questions/43587635/dpkg-error-processing-package-oracle-java8-installer-configure), and [@Link3](    https://askubuntu.com/questions/84483/how-to-completely-uninstall-java)
-+ Hadoop Counters Explained and Apache documentation - [@Link1](https://www.coding-daddy.xyz/node/8) [@Link2](https://hadoop.apache.org/docs/r2.4.1/hadoop-yarn/hadoop-yarn-site/HistoryServerRest.html)
-+  Set the time zone in EC2 - [@Link1](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/set-time.html) and [@Link2](https://stackoverflow.com/questions/11931566/how-to-set-the-time-zone-in-amazon-ec2)
-+  NCDC Dataset from [@here](https://gist.github.com/Alexander-Ignatyev/6478289)
++  Alec Jacobson alecjacobsonATgmailDOTcom [scp-speed-test.sh](https://www.alecjacobson.com/weblog/?p=635)
++  Nap-Hadoop-2.9.1 [repisotory](https://github.com/razo7/Nap-Hadoop-2.9.1) with the Hadoop source code and the network aware changes 
++  Installing Git lfs from [here](https://github.com/git-lfs/git-lfs/wiki/Installation)
++  Alice's Adventures in Wonderland by Lewis Carroll [text file](http://www.gutenberg.org/ebooks/11?msg=welcome_stranger)
++  Install java 8 - [Link1](https://tecadmin.net/install-oracle-java-8-ubuntu-via-ppa/), [Link2](   https://stackoverflow.com/questions/43587635/dpkg-error-processing-package-oracle-java8-installer-configure), and [Link3](    https://askubuntu.com/questions/84483/how-to-completely-uninstall-java)
++ Hadoop Counters Explained and Apache documentation - [Link1](https://www.coding-daddy.xyz/node/8) [Link2](https://hadoop.apache.org/docs/r2.4.1/hadoop-yarn/hadoop-yarn-site/HistoryServerRest.html)
++  Set the time zone in EC2 - [Link1](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/set-time.html) and [Link2](https://stackoverflow.com/questions/11931566/how-to-set-the-time-zone-in-amazon-ec2)
++  NCDC Dataset from [here](https://gist.github.com/Alexander-Ignatyev/6478289)
 ## Contact
-Created by Or Raz (razo7) as part of the master's thesis work and [@article](http://eprints.cs.univie.ac.at/6111/) - feel free to contact me on [@Linkedin](https://www.linkedin.com/in/or-raz/) or razo@post.bgu.ac.il !
+Created by Or Raz (razo7) as part of his master's thesis work and it was partly published in the following [article](https://ieeexplore.ieee.org/abstract/document/8935013) of NCA 19 (IEEE) - feel free to contact on [Linkedin](https://www.linkedin.com/in/or-raz/) or email (razo@post.bgu.ac.il)!
